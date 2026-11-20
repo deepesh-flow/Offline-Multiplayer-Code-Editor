@@ -13,13 +13,6 @@ import {
   getLanguageByFilename,
   updateRemoteCursorStyles,
 } from './utils/collab';
-import {
-  getStitchAuth,
-  saveStitchAuth,
-  checkStitchBackendStatus,
-  invokeStitchTool,
-  OFFLINE_STITCH_TEMPLATES,
-} from './utils/stitch';
 import './App.css';
 
 const DEFAULT_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:1234';
@@ -107,17 +100,8 @@ function App() {
     recentLogs: [],
   });
 
-  // Google Stitch AI UI / Design-to-Code Studio State
-  const [showStitchDrawer, setShowStitchDrawer] = useState(false);
-  const [stitchPrompt, setStitchPrompt] = useState('');
-  const [stitchDevice, setStitchDevice] = useState('DESKTOP');
-  const [isStitchLoading, setIsStitchLoading] = useState(false);
-  const [stitchStatus, setStitchStatus] = useState(null);
-  const [stitchActiveTab, setStitchActiveTab] = useState('generate'); // 'generate' | 'templates' | 'preview'
-  const [stitchPreviewHtml, setStitchPreviewHtml] = useState('');
-  const [stitchError, setStitchError] = useState(null);
-  const [stitchAuth, setStitchAuthState] = useState(() => getStitchAuth());
-  const [stitchSuccessMsg, setStitchSuccessMsg] = useState(null);
+  // Teammates dropdown menu state
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   // Core references
   const ydocRef = useRef(null);
@@ -778,64 +762,6 @@ function App() {
     }));
   }
 
-  // Google Stitch Handlers
-  useEffect(() => {
-    checkStitchBackendStatus().then(setStitchStatus);
-  }, []);
-
-  function handleSaveStitchCredentials(authData) {
-    saveStitchAuth(authData);
-    setStitchAuthState(authData);
-    setStitchSuccessMsg('Stitch credentials saved successfully!');
-    setTimeout(() => setStitchSuccessMsg(null), 3000);
-  }
-
-  async function handleGenerateStitchScreen() {
-    const prompt = stitchPrompt.trim();
-    if (!prompt) return;
-
-    setIsStitchLoading(true);
-    setStitchError(null);
-    setStitchSuccessMsg(null);
-
-    try {
-      const result = await invokeStitchTool('generate_screen_from_text', {
-        prompt,
-        deviceType: stitchDevice,
-      });
-
-      const generatedHtml = result?.html || result?.screen?.html || (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
-      setStitchPreviewHtml(generatedHtml);
-      setStitchActiveTab('preview');
-      setStitchSuccessMsg('Screen generated successfully via Stitch API!');
-    } catch (err) {
-      console.warn('Stitch API generation fallback:', err.message);
-      // If server or cloud auth is not configured, fallback cleanly to curated design generation
-      const fallbackKey = prompt.toLowerCase().includes('chat') ? 'component-chat' : prompt.toLowerCase().includes('dash') ? 'desktop-dashboard' : 'mobile-auth';
-      const template = OFFLINE_STITCH_TEMPLATES[fallbackKey];
-      setStitchPreviewHtml(template.html);
-      setStitchActiveTab('preview');
-      setStitchError(`Stitch Cloud: ${err.message}. Displaying generated UI preview below (you can inject it straight into your project!)`);
-    } finally {
-      setIsStitchLoading(false);
-    }
-  }
-
-  function handleInjectStitchIntoProject(filename, htmlContent) {
-    if (!ydocRef.current) return;
-    const filesMap = ydocRef.current.getMap('files');
-    const safeName = filename.endsWith('.html') ? filename : `${filename}.html`;
-
-    filesMap.set(safeName, { createdAt: Date.now() });
-    const ytext = ydocRef.current.getText(`file:${safeName}`);
-    ytext.delete(0, ytext.length);
-    ytext.insert(0, htmlContent);
-
-    setActiveFile(safeName);
-    setStitchSuccessMsg(`Injected ${safeName} directly into workspace!`);
-    setTimeout(() => setStitchSuccessMsg(null), 3500);
-  }
-
   // Helper to format arguments nicely for terminal display
   function formatArg(arg) {
     if (arg === null) return 'null';
@@ -1107,67 +1033,11 @@ function App() {
             ↷ Redo
           </button>
 
-          {/* In-Browser Code Runner */}
-          <button
-            className="btn-run"
-            onClick={handleRunCode}
-            disabled={isRunning}
-            title="Execute code directly in browser (works offline!)"
-          >
-            {isRunning ? '⏳ Running...' : '▶ Run'}
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => setShowConsole((prev) => !prev)}
-            title="Toggle Console / Terminal"
-            style={{ color: showConsole ? '#60a5fa' : 'inherit' }}
-          >
-            💻 Terminal
-          </button>
-          <button
-            className={`icon-btn ${showChat ? 'active' : ''}`}
-            onClick={handleToggleChat}
-            title="Toggle Offline-Synced Team Chat"
-            style={{
-              background: showChat ? '#3b82f633' : undefined,
-              color: showChat ? '#60a5fa' : undefined,
-              position: 'relative',
-            }}
-          >
-            💬 Chat
-            {unreadChatCount > 0 && !showChat && (
-              <span className="chat-badge">{unreadChatCount}</span>
-            )}
-          </button>
-
-          {/* Feature 3: Export Project as ZIP */}
-          <button
-            className="icon-btn"
-            onClick={handleExportZip}
-            disabled={isExportingZip}
-            title="Download entire project workspace as .zip file (100% offline-ready)"
-            style={{
-              color: exportFeedback ? '#34d399' : undefined,
-              borderColor: exportFeedback ? '#10b98166' : undefined,
-            }}
-          >
-            {isExportingZip ? '⏳ Zipping...' : exportFeedback ? '✓ ZIP Saved!' : '💾 Export ZIP'}
-          </button>
-
-          {/* Google Stitch AI Studio Trigger */}
-          <button
-            className={`stitch-btn ${showStitchDrawer ? 'active' : ''}`}
-            onClick={() => setShowStitchDrawer((prev) => !prev)}
-            title="Google Stitch AI UI / Design-to-Code Studio"
-          >
-            <span>✨ Stitch AI UI</span>
-          </button>
-
           {/* Feature 6: Conflict & Merge Telemetry Visualizer */}
           <button
             className="icon-btn"
             onClick={() => setShowTelemetryModal(true)}
-            title="CRDT Conflict & Merge Telemetry (Mathematical Proof of Convergence)"
+            title="CRDT Conflict and Merge Telemetry (Mathematical Proof of Convergence)"
             style={{
               background: showTelemetryModal ? '#10b98133' : undefined,
               color: showTelemetryModal ? '#34d399' : undefined,
@@ -1178,25 +1048,60 @@ function App() {
         </div>
 
         <div className="header-right">
-          {/* Collaborators Active Tray */}
-          <div className="collaborators-tray">
-            {collaborators.map((c) => (
-              <div
-                key={c.clientId}
-                className="user-badge"
-                title={`${c.name} ${c.isSelf ? '(You)' : ''} - Editing: ${c.currentFile || 'none'}`}
-                onClick={() => c.isSelf && setShowProfileModal(true)}
-              >
-                <span
-                  className="user-avatar-dot"
-                  style={{ backgroundColor: c.color }}
-                ></span>
-                <span>{c.isSelf ? `${c.name} (You)` : c.name}</span>
+          {/* Teammates Dropdown Menu */}
+          <div className="users-dropdown-container">
+            <button
+              className="users-dropdown-trigger"
+              onClick={() => setShowUserDropdown((prev) => !prev)}
+              title="View active collaborators"
+            >
+              <span className="user-avatar-dot" style={{ backgroundColor: currentUser.color }}></span>
+              <span className="users-dropdown-label">{currentUser.name} (You)</span>
+              <span className="user-count-chip">👥 {collaborators.length}</span>
+              <span className="users-dropdown-chevron">{showUserDropdown ? '▲' : '▼'}</span>
+            </button>
+
+            {showUserDropdown && (
+              <div className="users-dropdown-menu">
+                <div className="users-dropdown-header">
+                  <span>Active Teammates ({collaborators.length})</span>
+                  <button
+                    className="users-edit-profile-btn"
+                    onClick={() => {
+                      setShowUserDropdown(false);
+                      setShowProfileModal(true);
+                    }}
+                  >
+                    Edit Profile ✎
+                  </button>
+                </div>
+                <div className="users-dropdown-list">
+                  {collaborators.map((c) => (
+                    <div
+                      key={c.clientId}
+                      className="users-dropdown-item"
+                      onClick={() => {
+                        if (c.isSelf) {
+                          setShowUserDropdown(false);
+                          setShowProfileModal(true);
+                        }
+                      }}
+                    >
+                      <span className="user-avatar-dot" style={{ backgroundColor: c.color }}></span>
+                      <div className="users-item-info">
+                        <span className="users-item-name">
+                          {c.name} {c.isSelf ? '(You)' : ''}
+                        </span>
+                        <span className="users-item-file">
+                          Editing: {c.currentFile || 'none'}
+                        </span>
+                      </div>
+                      {c.isSelf && <span className="users-item-badge">You</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-            <span className="user-count-chip" title="Connected teammates">
-              👥 {collaborators.length}
-            </span>
+            )}
           </div>
         </div>
       </header>
@@ -1510,197 +1415,6 @@ function App() {
                 Send
               </button>
             </form>
-          </aside>
-        )}
-
-        {/* Google Stitch AI UI / Design-to-Code Drawer */}
-        {showStitchDrawer && (
-          <aside className="stitch-sidebar-drawer">
-            <div className="stitch-drawer-header">
-              <div className="stitch-brand-header">
-                <span style={{ fontSize: 18 }}>✨</span>
-                <span style={{ fontWeight: 700, fontSize: 14, color: '#f4f4f5' }}>Google Stitch Studio</span>
-                <span className="stitch-pill-badge">AI UI</span>
-              </div>
-              <button
-                className="chat-close-btn"
-                onClick={() => setShowStitchDrawer(false)}
-                title="Close Stitch Drawer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Navigation Tabs */}
-            <div className="stitch-nav-tabs">
-              <button
-                className={`stitch-tab ${stitchActiveTab === 'generate' ? 'active' : ''}`}
-                onClick={() => setStitchActiveTab('generate')}
-              >
-                ⚡ Generate Screen
-              </button>
-              <button
-                className={`stitch-tab ${stitchActiveTab === 'templates' ? 'active' : ''}`}
-                onClick={() => setStitchActiveTab('templates')}
-              >
-                🎨 Presets ({Object.keys(OFFLINE_STITCH_TEMPLATES).length})
-              </button>
-              <button
-                className={`stitch-tab ${stitchActiveTab === 'preview' ? 'active' : ''}`}
-                onClick={() => setStitchActiveTab('preview')}
-              >
-                👁 Live Preview
-              </button>
-            </div>
-
-            {/* Body Panels */}
-            <div className="stitch-body">
-              {stitchSuccessMsg && (
-                <div style={{ background: '#10b98122', border: '1px solid #10b98144', color: '#34d399', padding: '8px 12px', borderRadius: 8, fontSize: 12 }}>
-                  ✓ {stitchSuccessMsg}
-                </div>
-              )}
-              {stitchError && (
-                <div style={{ background: '#ef444422', border: '1px solid #ef444444', color: '#f87171', padding: '8px 12px', borderRadius: 8, fontSize: 12 }}>
-                  ℹ️ {stitchError}
-                </div>
-              )}
-
-              {stitchActiveTab === 'generate' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div className="stitch-prompt-box">
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      Design Prompt (Natural Language to UI)
-                    </label>
-                    <textarea
-                      className="stitch-textarea"
-                      placeholder="e.g. Modern dark theme login page with frosted glass card, email and password fields, and blue neon button..."
-                      value={stitchPrompt}
-                      onChange={(e) => setStitchPrompt(e.target.value)}
-                    />
-                    <div className="stitch-controls-row">
-                      <select
-                        className="stitch-select"
-                        value={stitchDevice}
-                        onChange={(e) => setStitchDevice(e.target.value)}
-                      >
-                        <option value="DESKTOP">Desktop (1440px)</option>
-                        <option value="MOBILE">Mobile (375px)</option>
-                        <option value="TABLET">Tablet (768px)</option>
-                        <option value="AGNOSTIC">Agnostic / Responsive</option>
-                      </select>
-
-                      <button
-                        className="stitch-btn"
-                        onClick={handleGenerateStitchScreen}
-                        disabled={isStitchLoading || !stitchPrompt.trim()}
-                        style={{ padding: '7px 14px' }}
-                      >
-                        {isStitchLoading ? '⏳ Generating UI...' : '✨ Generate Screen'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Backend Status indicator */}
-                  <div style={{ background: '#18181f', padding: '10px 12px', borderRadius: 8, border: '1px solid #2d2d38', fontSize: 11, color: '#a1a1aa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Stitch Engine Status:</span>
-                    <span style={{ color: stitchStatus?.sdkLoaded ? '#34d399' : '#fbbf24', fontWeight: 600 }}>
-                      {stitchStatus?.sdkLoaded ? '● SDK Active & Ready' : '● Offline Design Engine'}
-                    </span>
-                  </div>
-
-                  {/* Quick Starter Prompts */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span style={{ fontSize: 11, color: '#71717a', fontWeight: 600 }}>Quick Prompt Ideas:</span>
-                    <button
-                      type="button"
-                      style={{ textAlign: 'left', background: '#181820', border: '1px solid #272732', color: '#cbd5e1', padding: '6px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                      onClick={() => setStitchPrompt('Modern dark hostel dashboard with real-time sync metrics, peer list, and deployment status')}
-                    >
-                      💡 Modern dark hostel dashboard with real-time sync metrics
-                    </button>
-                    <button
-                      type="button"
-                      style={{ textAlign: 'left', background: '#181820', border: '1px solid #272732', color: '#cbd5e1', padding: '6px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                      onClick={() => setStitchPrompt('Mobile responsive authentication card with remember me and social logins')}
-                    >
-                      💡 Mobile responsive authentication card with remember me
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {stitchActiveTab === 'templates' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <p style={{ fontSize: 12, color: '#a1a1aa' }}>
-                    Curated offline-ready UI screens designed with Tailwind CSS. Click any card to preview or inject straight into your collaborative project:
-                  </p>
-                  {Object.entries(OFFLINE_STITCH_TEMPLATES).map(([key, tpl]) => (
-                    <div
-                      key={key}
-                      className="stitch-template-card"
-                      onClick={() => {
-                        setStitchPreviewHtml(tpl.html);
-                        setStitchActiveTab('preview');
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong style={{ fontSize: 13, color: '#f4f4f5' }}>{tpl.title}</strong>
-                        <span style={{ fontSize: 10, background: '#3b82f622', color: '#60a5fa', padding: '2px 6px', borderRadius: 4 }}>
-                          {tpl.device}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                        <span style={{ fontSize: 11, color: '#71717a' }}>Target: {tpl.filename}</span>
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          style={{ fontSize: 11, padding: '4px 10px' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleInjectStitchIntoProject(tpl.filename, tpl.html);
-                          }}
-                        >
-                          + Inject to Project
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {stitchActiveTab === 'preview' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 600 }}>Interactive Sandboxed Preview</span>
-                    {stitchPreviewHtml && (
-                      <button
-                        className="btn-primary"
-                        style={{ fontSize: 11, padding: '5px 12px' }}
-                        onClick={() => handleInjectStitchIntoProject('stitch_screen.html', stitchPreviewHtml)}
-                      >
-                        + Inject to Project (stitch_screen.html)
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="stitch-preview-container">
-                    {stitchPreviewHtml ? (
-                      <iframe
-                        title="Stitch UI Preview"
-                        className="stitch-preview-iframe"
-                        srcDoc={stitchPreviewHtml}
-                        sandbox="allow-scripts"
-                      />
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#71717a', fontSize: 12 }}>
-                        No preview yet. Generate a screen or select a template above.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
           </aside>
         )}
       </div>
