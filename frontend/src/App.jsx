@@ -18,33 +18,123 @@ const DEFAULT_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:1234';
 
 // Sample default files to populate on fresh project start
 const DEFAULT_FILES = {
-  'main.js': `// ⚡ Offline-First Multiplayer Code Editor (Problem H9)
-// Built for flaky hostel Wi-Fi: edits sync live, survive disconnects,
-// and merge cleanly without character loss using Yjs CRDTs.
-
-function runCollaborativeDemo() {
-  const team = "Code Fuzion Team";
-  console.log(\`[Online] \${team} is collaborating live!\`);
-  console.log("Try pressing 'Simulate Wi-Fi Drop', typing, and reconnecting.");
+  'main.js': `// ⚡ JavaScript Runner (Offline Sandbox)
+function calculateFibonacci(n) {
+  const seq = [0, 1];
+  for (let i = 2; i < n; i++) {
+    seq.push(seq[i - 1] + seq[i - 2]);
+  }
+  return seq;
 }
 
-runCollaborativeDemo();
+console.log("⚡ Collaborative JavaScript Runner Live:");
+console.log("Fibonacci numbers:", calculateFibonacci(8));
+console.log("Multiplayer CRDT sync active across all peers.");
+`,
+  'script.py': `# 🐍 Python 3 Runner (Pyodide WebAssembly)
+def greet_team(members):
+    print("Python 3 executing directly inside the browser!")
+    for idx, name in enumerate(members, 1):
+        print(f"  {idx}. Developer: {name}")
+
+team = ["Code Fuzion Team", "Duo Partner", "Judge Evaluator"]
+greet_team(team)
+
+numbers = [1, 2, 3, 4, 5]
+squares = [x**2 for x in numbers]
+print("Squares:", squares)
 `,
   'index.html': `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Offline Multiplayer Demo</title>
-  <style>
-    body { font-family: sans-serif; background: #111; color: #eee; padding: 20px; }
-    h1 { color: #3b82f6; }
-  </style>
+  <title>Live Web Preview</title>
 </head>
 <body>
-  <h1>Hello from MultiCode!</h1>
-  <p>Real-time CRDT synchronization in action.</p>
+  <div class="card">
+    <div class="badge">LIVE WEB PREVIEW</div>
+    <h1>🚀 Offline Code Studio</h1>
+    <p>HTML, CSS, and JS compile and update live together.</p>
+    <button id="counterBtn" onclick="increment()">Click Me</button>
+    <p class="counter-display">Clicks: <span id="count">0</span></p>
+  </div>
+
+  <script>
+    let count = 0;
+    function increment() {
+      count++;
+      document.getElementById('count').textContent = count;
+    }
+  </script>
 </body>
 </html>
+`,
+  'style.css': `/* CSS Stylesheet for Live Web Preview */
+body {
+  margin: 0;
+  padding: 30px;
+  background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+  color: #f4f4f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+}
+
+.card {
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 12px;
+  padding: 32px 40px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+  text-align: center;
+}
+
+.badge {
+  display: inline-block;
+  background: #3b82f622;
+  color: #60a5fa;
+  border: 1px solid #3b82f644;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+h1 {
+  margin: 0 0 10px 0;
+  color: #ffffff;
+}
+
+p {
+  color: #a1a1aa;
+}
+
+button {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+  margin-top: 10px;
+}
+
+button:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.counter-display {
+  font-weight: 700;
+  color: #34d399;
+  margin-top: 12px;
+}
 `,
   'README.md': `# MultiCode Offline (H9 Problem Statement)
 
@@ -90,6 +180,8 @@ function App() {
   const [showConsole, setShowConsole] = useState(false);
   const [consoleLogs, setConsoleLogs] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [activeBottomTab, setActiveBottomTab] = useState('console'); // 'console' | 'preview'
+  const [previewHtml, setPreviewHtml] = useState('');
 
   // Core references
   const ydocRef = useRef(null);
@@ -99,6 +191,7 @@ function App() {
   const monacoRef = useRef(null);
   const bindingRef = useRef(null);
   const undoManagerRef = useRef(null);
+  const pyodideRef = useRef(null);
 
   // Initialize Yjs, IndexedDB, and WebSocket Provider
   useEffect(() => {
@@ -387,7 +480,103 @@ function App() {
     }
   }
 
-  // In-Browser Code Runner
+  // Pyodide loader for browser-native Python execution
+  async function getPyodide() {
+    if (pyodideRef.current) return pyodideRef.current;
+    if (window.pyodideInstance) {
+      pyodideRef.current = window.pyodideInstance;
+      return window.pyodideInstance;
+    }
+
+    if (!window.loadPyodide) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
+        script.onload = resolve;
+        script.onerror = () =>
+          reject(
+            new Error(
+              'Could not load Pyodide engine from CDN. Connect to internet once to download Python.'
+            )
+          );
+        document.head.appendChild(script);
+      });
+    }
+
+    const pyodide = await window.loadPyodide({
+      indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',
+    });
+    window.pyodideInstance = pyodide;
+    pyodideRef.current = pyodide;
+    return pyodide;
+  }
+
+  // Compiler for Live Web Preview (bundles HTML + CSS + JS)
+  function buildAndSetWebPreview(currentFile, currentCode) {
+    const filesMap = ydocRef.current?.getMap('files');
+    const allFiles = filesMap ? Array.from(filesMap.keys()) : [];
+
+    let html = '';
+    if (currentFile.endsWith('.html')) {
+      html = currentCode;
+    } else {
+      const htmlFile = allFiles.find((f) => f.endsWith('.html'));
+      if (htmlFile) {
+        html = ydocRef.current?.getText(`file:${htmlFile}`)?.toString() || '';
+      } else {
+        html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Live Preview</title></head><body><div style="font-family:sans-serif;padding:24px;"><h2>Live Web Preview</h2><p>Create an <code>index.html</code> or <code>style.css</code> file to see changes live here.</p></div></body></html>`;
+      }
+    }
+
+    // Collect all CSS files in workspace
+    let cssBundle = '';
+    allFiles
+      .filter((f) => f.endsWith('.css'))
+      .forEach((f) => {
+        const content =
+          f === currentFile
+            ? currentCode
+            : ydocRef.current?.getText(`file:${f}`)?.toString() || '';
+        cssBundle += `\n/* ${f} */\n${content}\n`;
+      });
+    if (currentFile.endsWith('.css') && !allFiles.includes(currentFile)) {
+      cssBundle += `\n${currentCode}\n`;
+    }
+
+    // Collect all JS files in workspace (except main.js test file)
+    let jsBundle = '';
+    allFiles
+      .filter((f) => f.endsWith('.js') && f !== 'main.js')
+      .forEach((f) => {
+        const content =
+          f === currentFile
+            ? currentCode
+            : ydocRef.current?.getText(`file:${f}`)?.toString() || '';
+        jsBundle += `\n/* ${f} */\n${content}\n`;
+      });
+
+    // Inject CSS
+    if (cssBundle) {
+      if (html.includes('</head>')) {
+        html = html.replace('</head>', `<style>${cssBundle}</style></head>`);
+      } else {
+        html = `<style>${cssBundle}</style>` + html;
+      }
+    }
+
+    // Inject JS
+    if (jsBundle) {
+      if (html.includes('</body>')) {
+        html = html.replace('</body>', `<script>${jsBundle}</script></body>`);
+      } else {
+        html = html + `<script>${jsBundle}</script>`;
+      }
+    }
+
+    setPreviewHtml(html);
+  }
+
+  // In-Browser Code Runner for JS, Python, HTML, CSS
   async function handleRunCode() {
     setShowConsole(true);
     setIsRunning(true);
@@ -420,6 +609,7 @@ function App() {
 
     try {
       if (lang === 'javascript' || lang === 'typescript') {
+        setActiveBottomTab('console');
         const customConsole = {
           log: (...args) => {
             capturedAnyOutput = true;
@@ -464,15 +654,46 @@ function App() {
             'ℹ️ (Code executed successfully with no console.log output. Try: console.log("Hello World"))'
           );
         }
-      } else if (lang === 'html') {
-        capture('info', '🌐 Opening HTML preview in a new window...');
-        const blob = new Blob([code], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+      } else if (lang === 'python') {
+        setActiveBottomTab('console');
+        capture('system', '🐍 Initializing Python 3 (Pyodide WebAssembly)...');
+        const pyodide = await getPyodide();
+
+        // Redirect Python stdout and stderr into our terminal
+        pyodide.setStdout({
+          batched: (msg) => {
+            capturedAnyOutput = true;
+            capture('log', msg);
+          },
+        });
+        pyodide.setStderr({
+          batched: (msg) => {
+            capturedAnyOutput = true;
+            capture('error', msg);
+          },
+        });
+
+        const result = await pyodide.runPythonAsync(code);
+        if (result !== undefined && result !== null) {
+          const resStr = String(result);
+          if (resStr !== 'None' && resStr !== '') {
+            capturedAnyOutput = true;
+            capture('return', `↳ ${resStr}`);
+          }
+        }
+
+        if (!capturedAnyOutput) {
+          capture('info', 'ℹ️ (Python executed successfully with no print output)');
+        }
+      } else if (lang === 'html' || lang === 'css') {
+        setActiveBottomTab('preview');
+        buildAndSetWebPreview(activeFile, code);
+        capture('system', `🌐 Built live web preview for ${activeFile}`);
       } else {
+        setActiveBottomTab('console');
         capture(
           'info',
-          `📄 [${activeFile}] In-browser execution is optimized for JavaScript (.js/.jsx) & HTML (.html). For ${lang.toUpperCase()}, syntax highlighting is active.`
+          `📄 [${activeFile}] In-browser execution supports JavaScript (.js), Python (.py), HTML (.html), and CSS (.css). Syntax highlighting is active for ${lang.toUpperCase()}.`
         );
       }
     } catch (err) {
@@ -693,20 +914,42 @@ function App() {
                 className="btn-run"
                 onClick={handleRunCode}
                 disabled={isRunning}
-                title="Execute active code in browser terminal"
+                title="Execute active code in browser (JS, Python, HTML, CSS)"
               >
                 {isRunning ? '⏳ Running...' : '▶ Run Code'}
               </button>
               <button
                 className="icon-btn"
-                onClick={() => setShowConsole((prev) => !prev)}
-                title="Toggle Output Terminal"
+                onClick={() => {
+                  setShowConsole(true);
+                  setActiveBottomTab('console');
+                }}
+                title="Show Console Output"
                 style={{
-                  background: showConsole ? '#3b82f633' : undefined,
-                  color: showConsole ? '#60a5fa' : undefined,
+                  background: showConsole && activeBottomTab === 'console' ? '#3b82f633' : undefined,
+                  color: showConsole && activeBottomTab === 'console' ? '#60a5fa' : undefined,
                 }}
               >
-                💻 Terminal {showConsole ? '▼' : '▲'}
+                💻 Console
+              </button>
+              <button
+                className="icon-btn"
+                onClick={() => {
+                  setShowConsole(true);
+                  setActiveBottomTab('preview');
+                  const code =
+                    editorRef.current?.getValue() ||
+                    ydocRef.current?.getText(`file:${activeFile}`)?.toString() ||
+                    '';
+                  buildAndSetWebPreview(activeFile, code);
+                }}
+                title="Show Live Web Preview"
+                style={{
+                  background: showConsole && activeBottomTab === 'preview' ? '#3b82f633' : undefined,
+                  color: showConsole && activeBottomTab === 'preview' ? '#60a5fa' : undefined,
+                }}
+              >
+                🌐 Web Preview
               </button>
             </div>
           </div>
@@ -730,45 +973,103 @@ function App() {
             />
           </div>
 
-          {/* In-Browser Output Terminal */}
+          {/* In-Browser Output Terminal & Web Preview */}
           {showConsole && (
             <div className="ide-terminal">
               <div className="terminal-header">
-                <div className="terminal-title">
-                  <span>💻 Terminal / Output</span>
-                  <span style={{ fontSize: 10, color: '#10b981' }}>• Ready</span>
+                <div className="terminal-tabs">
+                  <button
+                    className={`terminal-tab-btn ${activeBottomTab === 'console' ? 'active' : ''}`}
+                    onClick={() => setActiveBottomTab('console')}
+                  >
+                    💻 Console
+                  </button>
+                  <button
+                    className={`terminal-tab-btn ${activeBottomTab === 'preview' ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveBottomTab('preview');
+                      const code =
+                        editorRef.current?.getValue() ||
+                        ydocRef.current?.getText(`file:${activeFile}`)?.toString() ||
+                        '';
+                      buildAndSetWebPreview(activeFile, code);
+                    }}
+                  >
+                    🌐 Web Preview
+                  </button>
                 </div>
                 <div className="terminal-actions">
-                  <button
-                    className="terminal-btn"
-                    onClick={() => setConsoleLogs([])}
-                    title="Clear console output"
-                  >
-                    Clear
-                  </button>
+                  {activeBottomTab === 'console' ? (
+                    <button
+                      className="terminal-btn"
+                      onClick={() => setConsoleLogs([])}
+                      title="Clear console output"
+                    >
+                      Clear
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        className="terminal-btn"
+                        onClick={() => {
+                          const code =
+                            editorRef.current?.getValue() ||
+                            ydocRef.current?.getText(`file:${activeFile}`)?.toString() ||
+                            '';
+                          buildAndSetWebPreview(activeFile, code);
+                        }}
+                        title="Rebuild and refresh preview"
+                      >
+                        🔄 Refresh
+                      </button>
+                      <button
+                        className="terminal-btn"
+                        onClick={() => {
+                          const blob = new Blob([previewHtml], { type: 'text/html' });
+                          const url = URL.createObjectURL(blob);
+                          window.open(url, '_blank');
+                        }}
+                        title="Popout preview in new window"
+                      >
+                        ↗ Popout
+                      </button>
+                    </>
+                  )}
                   <button
                     className="terminal-btn"
                     onClick={() => setShowConsole(false)}
-                    title="Close terminal"
+                    title="Close panel"
                   >
                     ✕
                   </button>
                 </div>
               </div>
-              <div className="terminal-logs">
-                {consoleLogs.length === 0 ? (
-                  <div style={{ color: '#52525b', fontStyle: 'italic' }}>
-                    Click "▶ Run" in the top bar to execute the code and view console logs here...
-                  </div>
-                ) : (
-                  consoleLogs.map((log, idx) => (
-                    <div key={idx} className={`log-entry log-${log.type}`}>
-                      <span className="log-time">[{log.time}]</span>
-                      <span>{log.text}</span>
+
+              {activeBottomTab === 'console' ? (
+                <div className="terminal-logs">
+                  {consoleLogs.length === 0 ? (
+                    <div style={{ color: '#52525b', fontStyle: 'italic' }}>
+                      Click "▶ Run Code" to execute Python (.py), JavaScript (.js), or preview HTML/CSS...
                     </div>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    consoleLogs.map((log, idx) => (
+                      <div key={idx} className={`log-entry log-${log.type}`}>
+                        <span className="log-time">[{log.time}]</span>
+                        <span>{log.text}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="preview-container">
+                  <iframe
+                    className="preview-iframe"
+                    title="Live Web Preview"
+                    sandbox="allow-scripts allow-modals"
+                    srcDoc={previewHtml}
+                  />
+                </div>
+              )}
             </div>
           )}
         </main>
