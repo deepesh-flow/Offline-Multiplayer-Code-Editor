@@ -1,44 +1,58 @@
-import { useRef } from "react";
+import { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { MonacoBinding } from "y-monaco";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:1234";
 
+const ydoc = new Y.Doc();
+new WebsocketProvider(WS_URL, "h9-room", ydoc);
+const filesMap = ydoc.getMap("files");
+
 function App() {
-  const cleanupRef = useRef(null);
+  const [fileNames, setFileNames] = useState([]);
 
-  function handleMount(editor) {
-    // Remove any earlier connection (React can mount twice in dev)
-    if (cleanupRef.current) cleanupRef.current();
+  useEffect(() => {
+    const update = () => setFileNames(Array.from(filesMap.keys()).sort());
+    update();
+    filesMap.observe(update);
+    return () => filesMap.unobserve(update);
+  }, []);
 
-    const ydoc = new Y.Doc();
-    const provider = new WebsocketProvider(WS_URL, "h9-room", ydoc);
-    const ytext = ydoc.getText("monaco");
-
-    const binding = new MonacoBinding(
-      ytext,
-      editor.getModel(),
-      new Set([editor]),
-      provider.awareness
-    );
-
-    cleanupRef.current = () => {
-      binding.destroy();
-      provider.destroy();
-      ydoc.destroy();
-    };
+  function createFile() {
+    const name = prompt("File name (e.g. main.py):");
+    if (!name || !name.trim()) return;
+    const clean = name.trim();
+    if (filesMap.has(clean)) {
+      alert("A file with that name already exists.");
+      return;
+    }
+    filesMap.set(clean, new Y.Text());
   }
 
   return (
-    <div style={{ height: "100vh" }}>
-      <Editor
-        height="100%"
-        defaultLanguage="javascript"
-        theme="vs-dark"
-        onMount={handleMount}
-      />
+    <div style={{ display: "flex", height: "100vh", background: "#1e1e1e" }}>
+      <div
+        style={{
+          width: 220,
+          borderRight: "1px solid #333",
+          color: "#ddd",
+          fontFamily: "sans-serif",
+          padding: 8,
+        }}
+      >
+        <button onClick={createFile} style={{ width: "100%", marginBottom: 8 }}>
+          + New file
+        </button>
+        {fileNames.map((name) => (
+          <div key={name} style={{ padding: "4px 6px" }}>
+            {name}
+          </div>
+        ))}
+      </div>
+      <div style={{ flex: 1 }}>
+        <Editor height="100%" defaultLanguage="javascript" theme="vs-dark" />
+      </div>
     </div>
   );
 }
