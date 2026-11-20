@@ -79,12 +79,17 @@ function App() {
   const [collaborators, setCollaborators] = useState([]);
   const [editorCursorPos, setEditorCursorPos] = useState({ line: 1, col: 1 });
 
-  // Modals
+  // Modals & Panels
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNewFileModal, setShowNewFileModal] = useState(false);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [newFileNameInput, setNewFileNameInput] = useState('');
   const [copyFeedback, setCopyFeedback] = useState(false);
+
+  // In-Browser Code Runner & Terminal
+  const [showConsole, setShowConsole] = useState(false);
+  const [consoleLogs, setConsoleLogs] = useState([]);
+  const [isRunning, setIsRunning] = useState(false);
 
   // Core references
   const ydocRef = useRef(null);
@@ -368,6 +373,79 @@ function App() {
     handleSwitchRoom(`room-${randomId}`);
   }
 
+  // In-Browser Code Runner
+  function handleRunCode() {
+    setShowConsole(true);
+    setIsRunning(true);
+
+    const code = editorRef.current
+      ? editorRef.current.getValue()
+      : ydocRef.current?.getText(`file:${activeFile}`)?.toString() || '';
+
+    const lang = getLanguageByFilename(activeFile);
+    const newLogs = [];
+
+    const captureLog = (type, args) => {
+      const text = args
+        .map((arg) => {
+          if (arg === null) return 'null';
+          if (arg === undefined) return 'undefined';
+          if (typeof arg === 'object') {
+            try {
+              return JSON.stringify(arg, null, 2);
+            } catch {
+              return String(arg);
+            }
+          }
+          return String(arg);
+        })
+        .join(' ');
+      newLogs.push({ type, text, time: new Date().toLocaleTimeString() });
+    };
+
+    const startTime = performance.now();
+
+    try {
+      if (lang === 'javascript' || lang === 'typescript') {
+        const customConsole = {
+          log: (...args) => captureLog('log', args),
+          info: (...args) => captureLog('info', args),
+          warn: (...args) => captureLog('warn', args),
+          error: (...args) => captureLog('error', args),
+        };
+
+        // Execute in isolated function scope with captured console
+        const executeScript = new Function('console', code);
+        const result = executeScript(customConsole);
+
+        if (result !== undefined) {
+          captureLog('return', [`Return value: ${typeof result === 'object' ? JSON.stringify(result) : result}`]);
+        }
+      } else if (lang === 'html') {
+        captureLog('info', ['Opening HTML preview in a new browser window...']);
+        const blob = new Blob([code], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } else {
+        captureLog('info', [
+          `[${activeFile}] In-browser execution currently runs JavaScript & HTML. Syntax highlighting is active for ${lang.toUpperCase()}.`,
+        ]);
+      }
+    } catch (err) {
+      captureLog('error', [err.stack || err.message || String(err)]);
+    }
+
+    const elapsed = Math.round(performance.now() - startTime);
+    newLogs.push({
+      type: 'system',
+      text: `⚡ Execution finished in ${elapsed}ms`,
+      time: new Date().toLocaleTimeString(),
+    });
+
+    setConsoleLogs((prev) => [...prev, ...newLogs]);
+    setIsRunning(false);
+  }
+
   // Peers active on specific file
   const getPeersOnFile = (filename) => {
     return collaborators.filter((p) => p.currentFile === filename);
@@ -451,6 +529,24 @@ function App() {
           </button>
           <button className="icon-btn" onClick={handleRedo} title="Per-User Redo (Ctrl+Y)">
             ↷ Redo
+          </button>
+
+          {/* In-Browser Code Runner */}
+          <button
+            className="btn-run"
+            onClick={handleRunCode}
+            disabled={isRunning}
+            title="Execute code directly in browser (works offline!)"
+          >
+            {isRunning ? '⏳ Running...' : '▶ Run'}
+          </button>
+          <button
+            className="icon-btn"
+            onClick={() => setShowConsole((prev) => !prev)}
+            title="Toggle Console / Terminal"
+            style={{ color: showConsole ? '#60a5fa' : 'inherit' }}
+          >
+            💻 Terminal
           </button>
         </div>
 
@@ -572,6 +668,48 @@ function App() {
               onMount={handleEditorMount}
             />
           </div>
+
+          {/* In-Browser Output Terminal */}
+          {showConsole && (
+            <div className="ide-terminal">
+              <div className="terminal-header">
+                <div className="terminal-title">
+                  <span>💻 Terminal / Output</span>
+                  <span style={{ fontSize: 10, color: '#10b981' }}>• Ready</span>
+                </div>
+                <div className="terminal-actions">
+                  <button
+                    className="terminal-btn"
+                    onClick={() => setConsoleLogs([])}
+                    title="Clear console output"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    className="terminal-btn"
+                    onClick={() => setShowConsole(false)}
+                    title="Close terminal"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div className="terminal-logs">
+                {consoleLogs.length === 0 ? (
+                  <div style={{ color: '#52525b', fontStyle: 'italic' }}>
+                    Click "▶ Run" in the top bar to execute the code and view console logs here...
+                  </div>
+                ) : (
+                  consoleLogs.map((log, idx) => (
+                    <div key={idx} className={`log-entry log-${log.type}`}>
+                      <span className="log-time">[{log.time}]</span>
+                      <span>{log.text}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </main>
       </div>
 

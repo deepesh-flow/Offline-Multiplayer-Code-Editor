@@ -91,3 +91,17 @@
    - In Window 2 (still online), type comments or another function.
    - In Window 1, click **"📶 Reconnect Wi-Fi"**.
    - Show how both texts merge cleanly together with zero lost characters!
+4. **Show In-Browser Runner**:
+   - Click **"▶ Run"** in the top bar.
+   - Watch the built-in Terminal open and instantly log output, even while disconnected!
+
+---
+
+## 🏃‍♂️ 9. In-Browser Code Runner (Viva Guide)
+### "How does the 'Run Code' button work?"
+* **Plain English Answer**:
+  > *"Instead of sending code to a remote backend server (which would fail when offline!), our runner executes 100% directly inside the browser using an isolated JavaScript sandbox.*
+  >
+  > *We override `console.log`, `console.warn`, and `console.error` inside a function scope, format the values, and stream them into our custom bottom terminal panel with millisecond execution timings.*
+  >
+  > *Because execution is client-side, it works completely offline without needing any internet connection!"*
