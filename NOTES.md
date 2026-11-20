@@ -96,6 +96,10 @@
 * **The Fresher Explanation**:
   > *"We observe the `Y.Array` delta events. When an incoming insert event is detected while the chat drawer is closed, our frontend increments an unread badge counter (`💬 Chat (1)`). Clicking the button opens the drawer and resets the unread count."*
 
+### Q: "If I click 'Clear', does it erase everyone's chat?"
+* **The Fresher Explanation**:
+  > *"No! In team projects, one member should never have the power to wipe their partner's chat history. When you click Clear, it only hides the messages on **your screen** by recording a local timestamp in `localStorage`. Your teammates' chat screens remain completely intact, and you can even click 'Restore' to view past messages again."*
+
 ---
 
 ## 🌐 9. Rooms & Deployment (Render + Netlify)

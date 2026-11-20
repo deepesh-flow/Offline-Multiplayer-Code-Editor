@@ -75,6 +75,7 @@ function App() {
   const [showChat, setShowChat] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [chatInputText, setChatInputText] = useState('');
+  const [clearedAtMap, setClearedAtMap] = useState({});
   const showChatRef = useRef(false);
   const chatEndRef = useRef(null);
 
@@ -189,6 +190,19 @@ function App() {
     showChatRef.current = showChat;
   }, [showChat]);
 
+  // Derive per-room cleared timestamp without triggering cascading renders in effects
+  const chatClearedAt = useMemo(() => {
+    if (clearedAtMap[roomName] !== undefined) {
+      return clearedAtMap[roomName];
+    }
+    try {
+      const stored = localStorage.getItem(`multicode_chat_cleared_${roomName}`);
+      return stored ? parseInt(stored, 10) : 0;
+    } catch {
+      return 0;
+    }
+  }, [clearedAtMap, roomName]);
+
   function handleToggleChat() {
     setShowChat((prev) => {
       const next = !prev;
@@ -199,12 +213,18 @@ function App() {
     });
   }
 
+  // Filter messages for current user so clearing chat affects only this user
+  const visibleChatMessages = useMemo(() => {
+    if (!chatClearedAt) return chatMessages;
+    return chatMessages.filter((msg) => !msg.timestamp || msg.timestamp > chatClearedAt);
+  }, [chatMessages, chatClearedAt]);
+
   // Auto-scroll chat to bottom when new messages arrive or drawer opens
   useEffect(() => {
     if (showChat) {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chatMessages, showChat]);
+  }, [visibleChatMessages, showChat]);
 
   // Keep awareness synced when user changes active file
   useEffect(() => {
@@ -439,11 +459,25 @@ function App() {
   }
 
   function handleClearChat() {
-    const confirmed = window.confirm('Clear all chat messages in this room?');
+    const confirmed = window.confirm(
+      'Clear chat history on your screen? (This will only clear for you; teammates will still see the messages)'
+    );
     if (!confirmed) return;
-    const chatArray = ydocRef.current?.getArray('chat-messages');
-    if (chatArray && chatArray.length > 0) {
-      chatArray.delete(0, chatArray.length);
+    const now = Date.now();
+    setClearedAtMap((prev) => ({ ...prev, [roomName]: now }));
+    try {
+      localStorage.setItem(`multicode_chat_cleared_${roomName}`, String(now));
+    } catch {
+      // LocalStorage fallback
+    }
+  }
+
+  function handleRestoreChat() {
+    setClearedAtMap((prev) => ({ ...prev, [roomName]: 0 }));
+    try {
+      localStorage.removeItem(`multicode_chat_cleared_${roomName}`);
+    } catch {
+      // LocalStorage fallback
     }
   }
 
@@ -961,13 +995,23 @@ function App() {
                 <span className="chat-badge-offline">Offline Synced</span>
               </div>
               <div className="chat-header-actions">
-                {chatMessages.length > 0 && (
+                {visibleChatMessages.length > 0 && (
                   <button
                     className="chat-clear-btn"
                     onClick={handleClearChat}
-                    title="Clear chat history in this room"
+                    title="Clear chat for me only (teammates keep their messages)"
                   >
-                    Clear
+                    Clear (for me)
+                  </button>
+                )}
+                {chatClearedAt > 0 && chatMessages.length > visibleChatMessages.length && (
+                  <button
+                    className="chat-clear-btn"
+                    style={{ color: '#60a5fa' }}
+                    onClick={handleRestoreChat}
+                    title="Restore previously hidden chat history"
+                  >
+                    Restore
                   </button>
                 )}
                 <button
@@ -981,16 +1025,40 @@ function App() {
             </div>
 
             <div className="chat-messages-container">
-              {chatMessages.length === 0 ? (
+              {visibleChatMessages.length === 0 ? (
                 <div className="chat-empty-state">
                   <div className="chat-empty-icon">💭</div>
-                  <div className="chat-empty-text">No messages yet.</div>
+                  <div className="chat-empty-text">
+                    {chatClearedAt > 0 ? 'Chat cleared for you.' : 'No messages yet.'}
+                  </div>
                   <div className="chat-empty-hint">
-                    Type a message below to test live team chat! Messages are stored in IndexedDB and sync automatically across peers even if Wi-Fi drops.
+                    {chatClearedAt > 0 ? (
+                      <>
+                        You cleared your chat history on this device. Teammates can still see their messages.
+                        <br />
+                        <button
+                          type="button"
+                          onClick={handleRestoreChat}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#60a5fa',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            marginTop: 8,
+                            fontSize: 11,
+                          }}
+                        >
+                          Restore previous messages
+                        </button>
+                      </>
+                    ) : (
+                      'Type a message below to test live team chat! Messages are stored in IndexedDB and sync automatically across peers even if Wi-Fi drops.'
+                    )}
                   </div>
                 </div>
               ) : (
-                chatMessages.map((msg) => {
+                visibleChatMessages.map((msg) => {
                   const isSelf = msg.senderName === currentUser.name;
                   const timeStr = msg.timestamp
                     ? new Date(msg.timestamp).toLocaleTimeString([], {
