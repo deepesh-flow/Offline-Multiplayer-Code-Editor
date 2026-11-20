@@ -1,4 +1,5 @@
-// Collab helper utilities: User identity, language detection, and remote cursor styling
+// Collab helper utilities: User identity, language detection, remote cursor styling, and CRDT state vectors
+import * as Y from 'yjs';
 
 export const USER_COLORS = [
   '#FF5722', // Deep Orange
@@ -204,3 +205,39 @@ export function updateRemoteCursorStyles(awareness) {
 
   styleEl.textContent = cssRules;
 }
+
+// CRDT State Vector Clock extraction helper (Feature 6)
+export function extractVectorClocks(doc, ws, currentUser) {
+  if (!doc) return [];
+  try {
+    const svMap = Y.decodeStateVector(Y.encodeStateVector(doc));
+    if (!svMap.has(doc.clientID)) {
+      svMap.set(doc.clientID, 0);
+    }
+    const awarenessStates = ws?.awareness ? ws.awareness.getStates() : new Map();
+    awarenessStates.forEach((_, cid) => {
+      if (!svMap.has(cid)) {
+        svMap.set(cid, 0);
+      }
+    });
+
+    return Array.from(svMap.entries()).map(([cid, clock]) => {
+      const peerState = awarenessStates.get(cid);
+      const isSelf = cid === doc.clientID;
+      return {
+        clientId: cid,
+        name:
+          peerState?.user?.name ||
+          (isSelf ? currentUser?.name || 'You' : `Peer #${cid % 1000}`),
+        isSelf,
+        color:
+          peerState?.user?.color ||
+          (isSelf ? currentUser?.color || '#3b82f6' : '#3b82f6'),
+        clock,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+

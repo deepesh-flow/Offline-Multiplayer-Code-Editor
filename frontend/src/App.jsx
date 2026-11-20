@@ -12,6 +12,7 @@ import {
   saveStoredUser,
   getLanguageByFilename,
   updateRemoteCursorStyles,
+  extractVectorClocks,
 } from './utils/collab';
 import './App.css';
 
@@ -159,6 +160,18 @@ function App() {
           }
         });
       }
+      // Populate state vector clocks immediately from loaded snapshot
+      try {
+        const idbClocks = extractVectorClocks(ydoc, wsProviderRef.current, currentUserRef.current);
+        if (idbClocks.length > 0) {
+          setTelemetryStats((prev) => ({
+            ...prev,
+            vectorClocks: idbClocks,
+          }));
+        }
+      } catch {
+        // Fallback
+      }
     });
 
     // 2. WebSocket provider for real-time collaboration
@@ -240,6 +253,19 @@ function App() {
 
       setCollaborators(peers);
       updateRemoteCursorStyles(awareness);
+
+      // Keep vector clocks in sync with awareness peers
+      try {
+        const peerClocks = extractVectorClocks(ydoc, wsProvider, localUser);
+        if (peerClocks.length > 0) {
+          setTelemetryStats((prev) => ({
+            ...prev,
+            vectorClocks: peerClocks,
+          }));
+        }
+      } catch {
+        // Fallback
+      }
     };
 
     awareness.on('change', handleAwarenessChange);
@@ -334,27 +360,7 @@ function App() {
         second: '2-digit',
       });
 
-      let vectorClocks = [];
-      try {
-        const svMap = Y.decodeStateVector(Y.encodeStateVector(ydoc));
-        vectorClocks = Array.from(svMap.entries()).map(([cid, clock]) => {
-          const peerState = wsProvider.awareness.getStates().get(cid);
-          const isSelf = cid === ydoc.clientID;
-          return {
-            clientId: cid,
-            name:
-              peerState?.user?.name ||
-              (isSelf ? currentUserRef.current.name : `Peer #${cid % 1000}`),
-            isSelf,
-            color:
-              peerState?.user?.color ||
-              (isSelf ? currentUserRef.current.color : '#3b82f6'),
-            clock,
-          };
-        });
-      } catch {
-        // Fallback
-      }
+      const vectorClocks = extractVectorClocks(ydoc, wsProvider, currentUserRef.current);
 
       const logItem = {
         id: `tel-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -377,11 +383,24 @@ function App() {
         remoteBytes: prev.remoteBytes + (isRemote ? bytes : 0),
         lastConvergenceTime: timeStr,
         vectorClocks: vectorClocks.length > 0 ? vectorClocks : prev.vectorClocks,
-        recentLogs: [logItem, ...prev.recentLogs].slice(0, 40),
+        recentLogs: [logItem, ...prev.recentLogs].slice(0, 50),
       }));
     };
 
     ydoc.on('update', handleDocUpdate);
+
+    // Initial state vector population on mount
+    try {
+      const initialClocks = extractVectorClocks(ydoc, wsProvider, currentUserRef.current);
+      if (initialClocks.length > 0) {
+        setTelemetryStats((prev) => ({
+          ...prev,
+          vectorClocks: initialClocks,
+        }));
+      }
+    } catch {
+      // Fallback
+    }
 
     return () => {
       clearTimeout(initialSyncTimer);
@@ -593,15 +612,60 @@ function App() {
     const ws = wsProviderRef.current;
     if (!ws) return;
 
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
     if (isSimulatedOffline) {
       // Reconnect
+      setWsStatus('connecting');
       ws.connect();
       setIsSimulatedOffline(false);
+
+      if (ws.awareness) {
+        const u = currentUserRef.current;
+        const f = activeFileRef.current;
+        ws.awareness.setLocalStateField('user', {
+          id: u.id,
+          name: u.name,
+          color: u.color,
+          currentFile: f,
+        });
+      }
+
+      const netLog = {
+        id: `tel-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        type: 'network-online',
+        time: timeStr,
+        bytes: 0,
+        summary: '📶 Wi-Fi reconnected • WebSocket restored • Exchanging State Vectors & merging diffs',
+      };
+
+      setTelemetryStats((prev) => ({
+        ...prev,
+        recentLogs: [netLog, ...prev.recentLogs].slice(0, 50),
+      }));
     } else {
       // Disconnect
       ws.disconnect();
       setIsSimulatedOffline(true);
       setWsStatus('disconnected');
+
+      const netLog = {
+        id: `tel-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        type: 'network-offline',
+        time: timeStr,
+        bytes: 0,
+        summary: '🔌 Wi-Fi dropped (Simulated) • WebSocket severed • Local edits queued safely in IndexedDB',
+      };
+
+      setTelemetryStats((prev) => ({
+        ...prev,
+        recentLogs: [netLog, ...prev.recentLogs].slice(0, 50),
+      }));
     }
   }
 
@@ -750,6 +814,11 @@ function App() {
 
   // Feature 6: Reset Telemetry Counters & Stream
   function handleResetTelemetry() {
+    const liveClocks = extractVectorClocks(
+      ydocRef.current,
+      wsProviderRef.current,
+      currentUserRef.current
+    );
     setTelemetryStats((prev) => ({
       ...prev,
       totalUpdates: 0,
@@ -758,6 +827,7 @@ function App() {
       totalBytes: 0,
       localBytes: 0,
       remoteBytes: 0,
+      vectorClocks: liveClocks.length > 0 ? liveClocks : prev.vectorClocks,
       recentLogs: [],
     }));
   }
@@ -1043,7 +1113,7 @@ function App() {
               color: showTelemetryModal ? '#34d399' : undefined,
             }}
           >
-            📊 Telemetry
+            📊 Telemetry ({telemetryStats.totalUpdates})
           </button>
         </div>
 
@@ -1438,7 +1508,7 @@ function App() {
             onClick={() => setShowTelemetryModal(true)}
             title="Open CRDT Conflict & Merge Telemetry Visualizer"
           >
-            📊 {telemetryStats.remoteUpdates} Merges • 0 Conflicts
+            📊 CRDT: {telemetryStats.totalUpdates} Ops ({telemetryStats.remoteUpdates} Merged) • 0 Conflicts
           </button>
         </div>
         <div className="statusbar-right">
@@ -1502,6 +1572,7 @@ function App() {
       {showTelemetryModal && (
         <TelemetryModal
           telemetryStats={telemetryStats}
+          isSimulatedOffline={isSimulatedOffline}
           roomName={roomName}
           onReset={handleResetTelemetry}
           onClose={() => setShowTelemetryModal(false)}
@@ -1648,7 +1719,13 @@ function ProfileModal({ currentUser, onSave, onClose }) {
   );
 }
 
-function TelemetryModal({ telemetryStats, roomName, onReset, onClose }) {
+function TelemetryModal({
+  telemetryStats,
+  isSimulatedOffline,
+  roomName,
+  onReset,
+  onClose,
+}) {
   const {
     localUpdates,
     remoteUpdates,
@@ -1676,7 +1753,11 @@ function TelemetryModal({ telemetryStats, roomName, onReset, onClose }) {
             <h3 className="modal-title" style={{ margin: 0 }}>
               📊 CRDT Conflict &amp; Merge Telemetry
             </h3>
-            <span className="telemetry-pill-verified">✓ Mathematical Convergence Active</span>
+            {isSimulatedOffline ? (
+              <span className="telemetry-pill-offline">● Offline (Queued in IndexedDB)</span>
+            ) : (
+              <span className="telemetry-pill-verified">✓ Mathematical Convergence Active</span>
+            )}
           </div>
           <button className="chat-close-btn" onClick={onClose} title="Close telemetry">
             ✕
@@ -1684,15 +1765,28 @@ function TelemetryModal({ telemetryStats, roomName, onReset, onClose }) {
         </div>
 
         {/* Live Mathematical Verification Ribbon */}
-        <div className="telemetry-banner">
-          <div className="telemetry-banner-icon">🛡️</div>
-          <div className="telemetry-banner-text">
-            <strong>Strong Eventual Consistency Active</strong>
-            <p>
-              CRDT lattice mathematical guarantee: regardless of network latency, dropouts, or edit arrival order, all peers converge to identical text with zero data loss and zero conflicts.
-            </p>
+        {isSimulatedOffline ? (
+          <div className="telemetry-banner telemetry-banner-offline">
+            <div className="telemetry-banner-icon">🔌</div>
+            <div className="telemetry-banner-text">
+              <strong>Simulated Wi-Fi Drop Active (Offline Mode)</strong>
+              <p>
+                WebSocket connection is disconnected. Edits and keystrokes are queueing safely into local IndexedDB storage.
+                When you click &quot;Reconnect Wi-Fi&quot;, State Vectors will exchange and queued diffs will merge automatically without conflicts.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="telemetry-banner">
+            <div className="telemetry-banner-icon">🛡️</div>
+            <div className="telemetry-banner-text">
+              <strong>Strong Eventual Consistency Active</strong>
+              <p>
+                CRDT lattice mathematical guarantee: regardless of network latency, dropouts, or edit arrival order, all peers converge to identical text with zero data loss and zero conflicts.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* KPI Metrics Grid */}
         <div className="telemetry-grid">
@@ -1716,8 +1810,12 @@ function TelemetryModal({ telemetryStats, roomName, onReset, onClose }) {
 
           <div className="telemetry-card">
             <div className="telemetry-card-label">Convergence Speed</div>
-            <div className="telemetry-card-val text-purple">&lt; 2 ms</div>
-            <div className="telemetry-card-sub">Last sync: {lastConvergenceTime || 'Active'}</div>
+            <div className={`telemetry-card-val ${isSimulatedOffline ? 'text-amber' : 'text-purple'}`}>
+              {isSimulatedOffline ? 'Offline' : '< 2 ms'}
+            </div>
+            <div className="telemetry-card-sub">
+              {isSimulatedOffline ? 'Queued to IndexedDB' : `Last sync: ${lastConvergenceTime || 'Active'}`}
+            </div>
           </div>
         </div>
 
@@ -1728,7 +1826,7 @@ function TelemetryModal({ telemetryStats, roomName, onReset, onClose }) {
             <span style={{ fontSize: 11, color: '#a1a1aa' }}>Room: {roomName}</span>
           </div>
           <div className="telemetry-vectors-list">
-            {vectorClocks.length === 0 ? (
+            {!vectorClocks || vectorClocks.length === 0 ? (
               <div className="telemetry-empty-sub">Initializing state vectors...</div>
             ) : (
               vectorClocks.map((v) => (
@@ -1738,6 +1836,9 @@ function TelemetryModal({ telemetryStats, roomName, onReset, onClose }) {
                     style={{ backgroundColor: v.color || '#3b82f6', width: 10, height: 10 }}
                   ></span>
                   <span style={{ fontWeight: 600 }}>{v.name} {v.isSelf ? '(You)' : ''}</span>
+                  {v.isSelf && isSimulatedOffline && (
+                    <span style={{ fontSize: 10, color: '#fbbf24', marginLeft: 4 }}>[Offline]</span>
+                  )}
                   <span className="telemetry-vector-cid">Client #{v.clientId}</span>
                   <span className="telemetry-vector-clock">Clock: v{v.clock}</span>
                 </div>
@@ -1756,17 +1857,44 @@ function TelemetryModal({ telemetryStats, roomName, onReset, onClose }) {
           </div>
           <div className="telemetry-stream-box">
             {recentLogs.length === 0 ? (
-              <div className="telemetry-empty-sub">Type in the editor or chat to observe real-time CRDT packets...</div>
+              <div className="telemetry-empty-sub">
+                Type in the editor, send a chat message, or toggle Wi-Fi drop to observe real-time CRDT packets...
+              </div>
             ) : (
-              recentLogs.map((log) => (
-                <div key={log.id} className={`telemetry-log-row log-type-${log.type}`}>
-                  <span className="telemetry-log-time">[{log.time}]</span>
-                  <span className={`telemetry-log-tag tag-${log.type}`}>
-                    {log.type === 'remote' ? 'REMOTE MERGE' : log.type === 'storage' ? 'INDEXEDDB' : 'LOCAL COMMIT'}
-                  </span>
-                  <span className="telemetry-log-msg">{log.summary}</span>
-                </div>
-              ))
+              recentLogs.map((log) => {
+                const isNetOffline = log.type === 'network-offline' || log.type === 'offline';
+                const isNetOnline = log.type === 'network-online' || log.type === 'online';
+                const isRemote = log.type === 'remote';
+                const isStorage = log.type === 'storage';
+                const tagClass = isNetOffline
+                  ? 'tag-network-offline'
+                  : isNetOnline
+                  ? 'tag-network-online'
+                  : isRemote
+                  ? 'tag-remote'
+                  : isStorage
+                  ? 'tag-storage'
+                  : 'tag-local';
+                const tagText = isNetOffline
+                  ? 'WI-FI DROP'
+                  : isNetOnline
+                  ? 'WI-FI RECONNECT'
+                  : isRemote
+                  ? 'REMOTE MERGE'
+                  : isStorage
+                  ? 'INDEXEDDB'
+                  : 'LOCAL COMMIT';
+
+                return (
+                  <div key={log.id} className={`telemetry-log-row log-type-${log.type}`}>
+                    <span className="telemetry-log-time">[{log.time}]</span>
+                    <span className={`telemetry-log-tag ${tagClass}`}>
+                      {tagText}
+                    </span>
+                    <span className="telemetry-log-msg">{log.summary}</span>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

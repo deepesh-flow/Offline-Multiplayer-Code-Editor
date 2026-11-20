@@ -1057,6 +1057,16 @@ body {
   border-radius: 999px;
 }
 
+.telemetry-pill-offline {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
 .telemetry-banner {
   background: #1e293b;
   border: 1px solid rgba(59, 130, 246, 0.3);
@@ -1066,6 +1076,11 @@ body {
   gap: 12px;
   align-items: flex-start;
   margin-bottom: 16px;
+}
+
+.telemetry-banner-offline {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .telemetry-banner-icon {
@@ -1118,6 +1133,7 @@ body {
 .text-blue { color: #60a5fa; }
 .text-emerald { color: #10b981; }
 .text-purple { color: #c084fc; }
+.text-amber { color: #fbbf24; }
 
 .telemetry-card-sub {
   font-size: 9.5px;
@@ -1217,6 +1233,18 @@ body {
 .tag-storage {
   background: rgba(139, 92, 246, 0.15);
   color: #c084fc;
+}
+
+.tag-offline,
+.tag-network-offline {
+  background: rgba(242, 63, 67, 0.2);
+  color: #ff9496;
+}
+
+.tag-online,
+.tag-network-online {
+  background: rgba(35, 165, 90, 0.2);
+  color: #46d682;
 }
 
 .telemetry-log-msg {
