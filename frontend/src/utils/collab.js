@@ -23,6 +23,7 @@ export function getRandomUser() {
   const randomColor = USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)];
   const randomNum = Math.floor(10 + Math.random() * 90);
   return {
+    id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     name: `Coder ${randomAnimal} ${randomNum}`,
     color: randomColor,
   };
@@ -30,14 +31,39 @@ export function getRandomUser() {
 
 export function getStoredUser() {
   try {
-    const raw = localStorage.getItem('h9_user_profile');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.name && parsed.color) return parsed;
+    // Check sessionStorage first for per-tab persistence across reloads
+    const sessionRaw = sessionStorage.getItem('h9_user_profile');
+    if (sessionRaw) {
+      const parsed = JSON.parse(sessionRaw);
+      if (parsed.name && parsed.color) {
+        if (!parsed.id) {
+          parsed.id = `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          sessionStorage.setItem('h9_user_profile', JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read user profile from sessionStorage', e);
+  }
+
+  // Fallback to localStorage
+  try {
+    const localRaw = localStorage.getItem('h9_user_profile');
+    if (localRaw) {
+      const parsed = JSON.parse(localRaw);
+      if (parsed.name && parsed.color) {
+        if (!parsed.id) {
+          parsed.id = `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        }
+        saveStoredUser(parsed);
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn('Could not read user profile from localStorage', e);
   }
+
   const generated = getRandomUser();
   saveStoredUser(generated);
   return generated;
@@ -45,6 +71,7 @@ export function getStoredUser() {
 
 export function saveStoredUser(user) {
   try {
+    sessionStorage.setItem('h9_user_profile', JSON.stringify(user));
     localStorage.setItem('h9_user_profile', JSON.stringify(user));
   } catch (e) {
     console.warn('Could not save user profile', e);

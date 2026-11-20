@@ -57,6 +57,12 @@
   >  
   > *Every connected peer broadcasts their chosen name, custom color, cursor line/column, and active file name. Our frontend receives these packets and dynamically injects colored CSS carets with floating name badges above each teammate's cursor."*
 
+### Q: "Why don't ghost users pile up when someone refreshes the tab?"
+* **The Fresher Explanation**:
+  > *"By default, Yjs assigns a random 32-bit `clientID` on every page load, leaving the previous client active on the server for 30 seconds. We fixed this with two techniques:*  
+  > *1. **Stable Session Client ID**: We store the tab's `clientID` in `sessionStorage` so refreshing the tab reconnects as the exact same client instead of spawning a new one.*  
+  > *2. **Instant Disconnect Signal**: We hook into `beforeunload` and `pagehide` to immediately set awareness to `null` the instant a tab closes, updating everyone's screen in real time with zero delay."*
+
 ---
 
 ## 📁 6. Multi-File Project Architecture

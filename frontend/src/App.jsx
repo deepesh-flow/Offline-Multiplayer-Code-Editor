@@ -93,10 +93,33 @@ function App() {
   const bindingRef = useRef(null);
   const undoManagerRef = useRef(null);
   const pyodideRef = useRef(null);
+  const currentUserRef = useRef(currentUser);
+  const activeFileRef = useRef(activeFile);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  useEffect(() => {
+    activeFileRef.current = activeFile;
+  }, [activeFile]);
 
   // Initialize Yjs, IndexedDB, and WebSocket Provider
   useEffect(() => {
     const ydoc = new Y.Doc();
+    // Maintain a stable clientID per browser tab session so page reloads do not create duplicate ghost users
+    try {
+      const storedClientId = sessionStorage.getItem('h9_tab_client_id');
+      if (storedClientId) {
+        ydoc.clientID = parseInt(storedClientId, 10);
+      } else {
+        const newClientId = Math.floor(Math.random() * 2147483647) + 1;
+        ydoc.clientID = newClientId;
+        sessionStorage.setItem('h9_tab_client_id', String(newClientId));
+      }
+    } catch {
+      // Fallback
+    }
     ydocRef.current = ydoc;
 
     // 1. Client-side IndexedDB persistence for offline-first support
@@ -122,27 +145,98 @@ function App() {
     const wsProvider = new WebsocketProvider(DEFAULT_WS_URL, roomName, ydoc);
     wsProviderRef.current = wsProvider;
 
-    wsProvider.on('status', ({ status }) => {
-      setWsStatus(status);
-    });
-
     // 3. Awareness setup for live cursors and user presence
     const awareness = wsProvider.awareness;
 
+    // Immediately publish local user state to awareness
+    const initialUser = currentUserRef.current;
+    const initialFile = activeFileRef.current;
+    awareness.setLocalStateField('user', {
+      id: initialUser.id,
+      name: initialUser.name,
+      color: initialUser.color,
+      currentFile: initialFile,
+    });
+
+    wsProvider.on('status', ({ status }) => {
+      setWsStatus(status);
+      if (status === 'connected') {
+        const u = currentUserRef.current;
+        const f = activeFileRef.current;
+        awareness.setLocalStateField('user', {
+          id: u.id,
+          name: u.name,
+          color: u.color,
+          currentFile: f,
+        });
+      }
+    });
+
     const handleAwarenessChange = () => {
       const states = Array.from(awareness.getStates().entries());
-      const peers = states
-        .filter(([, state]) => state && state.user)
-        .map(([clientId, state]) => ({
-          clientId,
-          isSelf: clientId === ydoc.clientID,
-          ...state.user,
-        }));
+      const peerMap = new Map();
+      const localUser = currentUserRef.current;
+      const currentActive = activeFileRef.current;
+
+      states.forEach(([clientId, state]) => {
+        if (!state || !state.user) return;
+        const isSelf = clientId === ydoc.clientID;
+        const userKey = state.user.id || state.user.name;
+
+        // If duplicate entry exists (e.g. from rapid reload), prioritize active isSelf or newest clientId
+        if (peerMap.has(userKey)) {
+          const existing = peerMap.get(userKey);
+          if (isSelf || (!existing.isSelf && clientId > existing.clientId)) {
+            peerMap.set(userKey, {
+              clientId,
+              isSelf,
+              ...state.user,
+            });
+          }
+        } else {
+          peerMap.set(userKey, {
+            clientId,
+            isSelf,
+            ...state.user,
+          });
+        }
+      });
+
+      // Always ensure local user is listed
+      if (!Array.from(peerMap.values()).some((p) => p.isSelf)) {
+        peerMap.set(localUser.id || localUser.name, {
+          clientId: ydoc.clientID,
+          isSelf: true,
+          ...localUser,
+          currentFile: currentActive,
+        });
+      }
+
+      const peers = Array.from(peerMap.values()).sort((a, b) => {
+        if (a.isSelf) return -1;
+        if (b.isSelf) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+
       setCollaborators(peers);
       updateRemoteCursorStyles(awareness);
     };
 
     awareness.on('change', handleAwarenessChange);
+    handleAwarenessChange();
+
+    // Fast-disconnect handler on page refresh / tab close so users disappear in real-time
+    const handleUnload = () => {
+      try {
+        awareness.setLocalState(null);
+        wsProvider.disconnect();
+      } catch {
+        // Ignore during teardown
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
 
     // 4. Track file list changes from shared files Y.Map
     const filesMap = ydoc.getMap('files');
@@ -181,7 +275,10 @@ function App() {
     handleChatChange();
 
     return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
       awareness.off('change', handleAwarenessChange);
+      awareness.setLocalState(null);
       filesMap.unobserve(handleFilesChange);
       chatArray.unobserve(handleChatChange);
       wsProvider.destroy();
@@ -235,6 +332,7 @@ function App() {
   useEffect(() => {
     if (wsProviderRef.current?.awareness) {
       wsProviderRef.current.awareness.setLocalStateField('user', {
+        id: currentUser.id,
         name: currentUser.name,
         color: currentUser.color,
         currentFile: activeFile,
@@ -411,7 +509,7 @@ function App() {
 
   // User Profile
   function handleSaveProfile(newName, newColor) {
-    const updated = { name: newName, color: newColor };
+    const updated = { ...currentUser, name: newName, color: newColor };
     setCurrentUser(updated);
     saveStoredUser(updated);
     if (wsProviderRef.current?.awareness) {
@@ -419,6 +517,10 @@ function App() {
         ...updated,
         currentFile: activeFile,
       });
+      // Immediately reflect updated user in active collaborators tray
+      setCollaborators((prev) =>
+        prev.map((p) => (p.isSelf ? { ...p, ...updated } : p))
+      );
     }
     setShowProfileModal(false);
   }
