@@ -978,3 +978,262 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   Feature 6: CRDT Conflict & Merge Telemetry Visualizer
+   ========================================================================== */
+.statusbar-telemetry-btn {
+  background: #10b98122;
+  color: #34d399;
+  border: 1px solid #10b98155;
+  padding: 2px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s;
+}
+
+.statusbar-telemetry-btn:hover {
+  background: #10b9813d;
+  color: #fff;
+  border-color: #34d399;
+}
+
+.telemetry-modal-content {
+  width: 650px;
+  max-width: 95vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 22px;
+}
+
+.telemetry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.telemetry-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.telemetry-pill-verified {
+  font-size: 11px;
+  font-weight: 700;
+  background: #10b98122;
+  color: #34d399;
+  border: 1px solid #10b98144;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.telemetry-banner {
+  background: #172554;
+  border: 1px solid #3b82f644;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.telemetry-banner-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.telemetry-banner-text strong {
+  display: block;
+  font-size: 13px;
+  color: #93c5fd;
+  margin-bottom: 3px;
+}
+
+.telemetry-banner-text p {
+  font-size: 11.5px;
+  color: #cbd5e1;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .telemetry-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.telemetry-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.telemetry-card-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.telemetry-card-val {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 2px;
+  font-family: monospace;
+}
+
+.text-green { color: #34d399; }
+.text-blue { color: #60a5fa; }
+.text-emerald { color: #10b981; }
+.text-purple { color: #c084fc; }
+
+.telemetry-card-sub {
+  font-size: 10px;
+  color: #71717a;
+  margin-top: auto;
+}
+
+.telemetry-section {
+  margin-bottom: 14px;
+}
+
+.telemetry-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e4e4e7;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.telemetry-vectors-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--bg-primary);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.telemetry-vector-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 5px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.telemetry-vector-cid {
+  font-size: 10px;
+  color: #71717a;
+  font-family: monospace;
+}
+
+.telemetry-vector-clock {
+  font-size: 11px;
+  font-weight: 700;
+  color: #34d399;
+  background: #10b98118;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #10b98133;
+  font-family: monospace;
+}
+
+.telemetry-stream-box {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.telemetry-log-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.telemetry-log-time {
+  color: #52525b;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.telemetry-log-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+
+.tag-remote {
+  background: #10b98122;
+  color: #34d399;
+  border: 1px solid #10b98144;
+}
+
+.tag-local {
+  background: #3b82f622;
+  color: #60a5fa;
+  border: 1px solid #3b82f644;
+}
+
+.tag-storage {
+  background: #8b5cf622;
+  color: #c084fc;
+  border: 1px solid #8b5cf644;
+}
+
+.telemetry-log-msg {
+  color: #d4d4d8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.telemetry-empty-sub {
+  color: #71717a;
+  font-size: 11px;
+  font-style: italic;
+  padding: 8px;
+}
