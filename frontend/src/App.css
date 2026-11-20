@@ -1,17 +1,37 @@
-/* Modern Dark IDE Theme for MultiCode Offline */
+/* ==========================================================================
+   MultiCode Offline — Discord Dark + VS Code Pro Minimalist Design Theme
+   Palette:
+   - Discord Backgrounds: #1e1f22 (Deep Sidebar/Chat), #2b2d31 (Channels/Cards), #313338 (Main BG)
+   - VS Code Editor: #1e1e1e (Monaco Canvas), #252526 (Tabs), #181818 (Activity/Status)
+   - Accents: #5865f2 (Discord Blurple), #007acc (VS Code Blue), #23a55a (Discord Online Green)
+   - Typography: 'gg sans', 'Segoe UI', -apple-system, system-ui, sans-serif
+   ========================================================================== */
+
 :root {
-  --bg-primary: #18181b;
-  --bg-secondary: #222226;
-  --bg-tertiary: #2a2a30;
-  --bg-hover: #35353c;
-  --border-color: #383842;
-  --text-main: #f4f4f5;
-  --text-muted: #a1a1aa;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --danger: #ef4444;
-  --success: #10b981;
-  --warning: #f59e0b;
+  /* Discord & VS Code Dark Foundation */
+  --bg-app: #1e1f22;               /* Activity bar & app outer border */
+  --bg-primary: #313338;           /* Discord main chat / container background */
+  --bg-secondary: #2b2d31;         /* Discord channel list / sidebar / panels */
+  --bg-tertiary: #1e1f22;          /* Deep panel / dark headers */
+  --bg-editor: #1e1e1e;            /* VS Code editor standard canvas */
+  --bg-hover: #35373c;             /* Subtle clean hover state */
+  --bg-active: #404249;            /* Active item state */
+  --border-color: #232428;         /* Minimal hairline separator */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+
+  /* Typography */
+  --text-main: #f2f3f5;            /* Crisp high-contrast readable white */
+  --text-muted: #949ba4;           /* Discord clean secondary grey */
+  --text-dim: #6d6f78;             /* Minimal placeholders & timestamps */
+
+  /* Discord & VS Code Accents */
+  --accent: #5865f2;               /* Discord Blurple */
+  --accent-hover: #4752c4;
+  --vscode-blue: #007acc;          /* VS Code Blue */
+  --danger: #f23f43;               /* Discord Red */
+  --success: #23a55a;              /* Discord Green */
+  --warning: #f0b232;              /* Discord Yellow */
+  --purple-glow: #8b5cf6;
 }
 
 * {
@@ -21,11 +41,28 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: var(--bg-primary);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  background-color: var(--bg-app);
   color: var(--text-main);
   overflow: hidden;
   height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .ide-container {
@@ -33,18 +70,20 @@ body {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: var(--bg-primary);
+  background: var(--bg-app);
 }
 
-/* Header Navbar */
+/* ==========================================================================
+   Header Navbar (Minimalist VS Code Title Bar + Discord Room Status)
+   ========================================================================== */
 .ide-header {
-  height: 48px;
-  background: var(--bg-secondary);
+  height: 44px;
+  background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 14px;
   user-select: none;
   z-index: 100;
 }
@@ -52,29 +91,30 @@ body {
 .header-left, .header-center, .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .brand-badge {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 13.5px;
   color: #fff;
   letter-spacing: -0.2px;
 }
 
 .brand-icon {
-  font-size: 18px;
+  font-size: 16px;
+  color: var(--accent);
 }
 
 .brand-tag {
   font-size: 10px;
-  background: #3b82f622;
-  color: #60a5fa;
-  border: 1px solid #3b82f644;
-  padding: 2px 6px;
+  background: rgba(88, 101, 242, 0.15);
+  color: #8090ff;
+  border: 1px solid rgba(88, 101, 242, 0.3);
+  padding: 2px 7px;
   border-radius: 999px;
   font-weight: 600;
 }
@@ -84,16 +124,17 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  padding: 4px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 3px 10px;
   border-radius: 6px;
   font-size: 12px;
   color: var(--text-muted);
 }
 
 .room-pill strong {
-  color: #fff;
+  color: var(--text-main);
+  font-weight: 600;
 }
 
 .copy-btn {
@@ -101,63 +142,64 @@ body {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
-  padding: 2px;
+  font-size: 11.5px;
+  padding: 2px 6px;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
-  transition: color 0.15s;
+  transition: all 0.15s;
 }
 
 .copy-btn:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-/* Network Status Indicators */
+/* Connection Status Badge (Discord Styled) */
 .status-indicator {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
   border-radius: 999px;
   transition: all 0.2s ease;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
 
 .status-online {
-  background: #10b98120;
-  color: #34d399;
-  border: 1px solid #10b98140;
+  background: rgba(35, 165, 90, 0.15);
+  color: #46d682;
+  border: 1px solid rgba(35, 165, 90, 0.3);
 }
 .status-online .status-dot {
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
 }
 
 .status-offline {
-  background: #ef444420;
-  color: #f87171;
-  border: 1px solid #ef444440;
+  background: rgba(242, 63, 67, 0.15);
+  color: #ff787b;
+  border: 1px solid rgba(242, 63, 67, 0.3);
 }
 .status-offline .status-dot {
-  background: #ef4444;
-  box-shadow: 0 0 8px #ef4444;
+  background: var(--danger);
+  box-shadow: 0 0 6px var(--danger);
 }
 
 .status-syncing {
-  background: #f59e0b20;
-  color: #fbbf24;
-  border: 1px solid #f59e0b40;
+  background: rgba(240, 178, 50, 0.15);
+  color: #f7ca68;
+  border: 1px solid rgba(240, 178, 50, 0.3);
 }
 .status-syncing .status-dot {
-  background: #f59e0b;
+  background: var(--warning);
   animation: pulse 1.5s infinite;
 }
 
@@ -166,17 +208,17 @@ body {
   50% { opacity: 0.4; transform: scale(0.85); }
 }
 
-/* Simulation Button */
+/* Toolbar Buttons (VS Code Style) */
 .btn-simulate {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  gap: 5px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
   color: var(--text-main);
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
@@ -184,16 +226,85 @@ body {
 
 .btn-simulate:hover {
   background: var(--bg-hover);
-  border-color: #555;
 }
 
 .btn-simulate.active {
-  background: #ef444433;
-  color: #fca5a5;
-  border-color: #ef444488;
+  background: rgba(242, 63, 67, 0.2);
+  color: #ff9496;
+  border-color: rgba(242, 63, 67, 0.4);
 }
 
-/* Collaborators Avatars */
+.icon-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 4px 9px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.btn-run {
+  background: var(--success);
+  color: #ffffff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.btn-run:hover {
+  background: #1f9450;
+  transform: translateY(-0.5px);
+}
+
+.btn-run:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Google Stitch AI Studio Trigger Button */
+.stitch-btn {
+  background: linear-gradient(135deg, #5865f2 0%, #7c3aed 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 4px 11px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.stitch-btn:hover {
+  filter: brightness(1.12);
+  box-shadow: 0 2px 10px rgba(88, 101, 242, 0.4);
+}
+
+.stitch-btn.active {
+  background: #5865f2;
+  box-shadow: 0 0 10px rgba(88, 101, 242, 0.6);
+}
+
+/* Collaborators Tray (Discord Member Avatars Style) */
 .collaborators-tray {
   display: flex;
   align-items: center;
@@ -203,63 +314,54 @@ body {
 .user-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
+  gap: 5px;
+  padding: 3px 8px;
   border-radius: 999px;
-  font-size: 12px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  font-size: 11.5px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: transform 0.15s;
+  color: var(--text-main);
+  transition: background 0.15s;
 }
 
 .user-badge:hover {
-  transform: translateY(-1px);
+  background: var(--bg-hover);
 }
 
 .user-avatar-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
 }
 
 .user-count-chip {
-  font-size: 11px;
-  background: var(--bg-hover);
-  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 3px 8px;
   border-radius: 999px;
   color: var(--text-muted);
 }
 
-/* Toolbar Buttons */
-.icon-btn {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-size: 12px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.icon-btn:hover {
-  background: var(--bg-hover);
-}
-
-/* Main Body Layout */
+/* ==========================================================================
+   Main IDE Body Layout
+   ========================================================================== */
 .ide-body {
   display: flex;
   flex: 1;
   min-height: 0;
   overflow: hidden;
   position: relative;
+  background: var(--bg-app);
 }
 
-/* Sidebar */
+/* Sidebar File Explorer (VS Code + Discord Channel Hierarchy) */
 .ide-sidebar {
-  width: 250px;
+  width: 230px;
+  min-width: 190px;
+  max-width: 320px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
@@ -268,11 +370,12 @@ body {
 }
 
 .sidebar-header {
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
 }
 
 .sidebar-title {
@@ -283,55 +386,40 @@ body {
   color: var(--text-muted);
 }
 
+.sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .btn-new-file {
   background: var(--accent);
   color: #fff;
   border: none;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: background 0.15s;
-}
-
-.btn-new-file:hover {
-  background: var(--accent-hover);
-}
-
-.sidebar-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-export-zip {
-  background: var(--bg-tertiary);
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  transition: background 0.15s;
+}
+.btn-new-file:hover {
+  background: var(--accent-hover);
+}
+
+.btn-export-zip {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
   transition: all 0.15s;
 }
-
-.btn-export-zip:hover:not(:disabled) {
-  background: #3b82f622;
-  border-color: #3b82f666;
-  color: #60a5fa;
-}
-
-.btn-export-zip:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.btn-export-zip:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
 }
 
 .file-list {
@@ -344,13 +432,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 6px 9px;
   border-radius: 5px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-muted);
-  transition: all 0.12s;
-  margin-bottom: 2px;
+  transition: all 0.12s ease;
+  margin-bottom: 1px;
 }
 
 .file-item:hover {
@@ -359,23 +447,24 @@ body {
 }
 
 .file-item.active {
-  background: #3b82f625;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
   font-weight: 500;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--vscode-blue);
 }
 
 .file-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .file-icon {
-  font-size: 14px;
+  font-size: 13px;
+  opacity: 0.8;
 }
 
 .file-collaborators {
@@ -387,18 +476,18 @@ body {
 }
 
 .file-collab-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 
 .file-delete-btn {
   background: none;
   border: none;
-  color: #71717a;
+  color: var(--text-dim);
   cursor: pointer;
   font-size: 13px;
-  padding: 2px 4px;
+  padding: 1px 4px;
   border-radius: 3px;
   display: none;
 }
@@ -409,44 +498,46 @@ body {
 
 .file-delete-btn:hover {
   color: var(--danger);
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(242, 63, 67, 0.15);
 }
 
-/* Sidebar Footer / Viva Info */
+/* Sidebar Footer / Compact Info */
 .sidebar-footer {
-  padding: 10px 12px;
-  background: var(--bg-primary);
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
   border-top: 1px solid var(--border-color);
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .sidebar-footer strong {
   color: var(--text-main);
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
-/* Editor Workspace Area */
+/* ==========================================================================
+   Editor Workspace Area (Pure VS Code Clean Look)
+   ========================================================================== */
 .ide-workspace {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
+  background: var(--bg-editor);
   overflow: hidden;
   position: relative;
 }
 
 /* Tab Bar */
 .tab-bar {
-  height: 36px;
-  background: #1e1e1e;
-  border-bottom: 1px solid #2d2d30;
+  height: 35px;
+  background: #181818;
+  border-bottom: 1px solid #282828;
   display: flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 6px;
   gap: 4px;
   user-select: none;
 }
@@ -454,19 +545,20 @@ body {
 .editor-tab {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: #252526;
-  color: #fff;
+  gap: 7px;
+  background: var(--bg-editor);
+  color: var(--text-main);
   padding: 6px 14px;
-  border-radius: 4px 4px 0 0;
-  font-size: 13px;
-  border-top: 2px solid var(--accent);
+  font-size: 12.5px;
+  border-top: 1.5px solid var(--vscode-blue);
+  border-right: 1px solid #282828;
 }
 
 .editor-tab-lang {
-  font-size: 10px;
-  color: #858585;
+  font-size: 9.5px;
+  color: var(--text-dim);
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .monaco-wrapper {
@@ -474,42 +566,16 @@ body {
   min-height: 0;
   width: 100%;
   position: relative;
+  background: var(--bg-editor);
 }
 
-/* Run Button */
-.btn-run {
-  background: #10b981;
-  color: #fff;
-  border: none;
-  padding: 5px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  transition: all 0.15s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-
-.btn-run:hover {
-  background: #059669;
-  transform: translateY(-1px);
-}
-
-.btn-run:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Terminal / Console Panel */
+/* Terminal / Console Panel (VS Code Style) */
 .ide-terminal {
-  height: 220px;
-  min-height: 140px;
-  max-height: 50vh;
+  height: 200px;
+  min-height: 120px;
+  max-height: 45vh;
   flex-shrink: 0;
-  background: #121214;
+  background: #141414;
   border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -518,21 +584,21 @@ body {
 }
 
 .terminal-header {
-  height: 32px;
-  background: var(--bg-secondary);
+  height: 30px;
+  background: #181818;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 10px;
   user-select: none;
 }
 
 .terminal-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -542,7 +608,7 @@ body {
 .terminal-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .terminal-btn {
@@ -550,9 +616,9 @@ body {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
-  padding: 3px 6px;
-  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
   display: inline-flex;
   align-items: center;
 }
@@ -565,11 +631,11 @@ body {
 .terminal-logs {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 14px;
-  font-family: Consolas, "Courier New", monospace;
+  padding: 8px 12px;
+  font-family: Consolas, "Fira Code", monospace;
   font-size: 12px;
-  line-height: 1.6;
-  background: #0d0d0f;
+  line-height: 1.5;
+  background: #111111;
 }
 
 .log-entry {
@@ -581,68 +647,469 @@ body {
 }
 
 .log-time {
-  color: #52525b;
+  color: #555555;
   font-size: 10px;
   flex-shrink: 0;
-  padding-top: 2px;
 }
 
-.log-log {
-  color: #e4e4e7;
+.log-log { color: #d4d4d4; }
+.log-info { color: #5865f2; }
+.log-warn { color: #f0b232; }
+.log-error { color: #f23f43; }
+.log-return { color: #38bdf8; font-style: italic; }
+.log-system { color: #23a55a; font-weight: 600; }
+
+/* ==========================================================================
+   Discord-Styled Team Chat Drawer
+   ========================================================================== */
+.ide-chat-drawer {
+  width: 310px;
+  min-width: 270px;
+  max-width: 360px;
+  height: 100%;
+  min-height: 0;
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 25;
 }
 
-.log-info {
-  color: #60a5fa;
-}
-
-.log-warn {
-  color: #fbbf24;
-}
-
-.log-error {
-  color: #f87171;
-}
-
-.log-return {
-  color: #38bdf8;
-  font-style: italic;
-}
-
-.log-system {
-  color: #34d399;
-  font-weight: 600;
-}
-
-/* Status Bar */
-.ide-statusbar {
-  height: 24px;
-  background: #007acc;
-  color: #fff;
+.chat-header {
+  height: 40px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.chat-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.chat-badge-offline {
+  font-size: 9.5px;
+  font-weight: 600;
+  background: rgba(35, 165, 90, 0.15);
+  color: #46d682;
+  border: 1px solid rgba(35, 165, 90, 0.3);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.chat-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
   font-size: 11px;
-  font-family: Consolas, "Courier New", monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.chat-clear-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.chat-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.chat-close-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.chat-messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-primary);
+}
+
+.chat-empty-state {
+  margin: auto;
+  text-align: center;
+  padding: 20px 10px;
+}
+
+.chat-empty-icon {
+  font-size: 26px;
+  opacity: 0.6;
+  margin-bottom: 6px;
+}
+
+.chat-empty-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.chat-empty-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Discord Style Message Bubbles */
+.chat-message-bubble {
+  max-width: 90%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  word-break: break-word;
+}
+
+.chat-message-bubble.msg-self {
+  align-self: flex-end;
+  background: #383a40;
+  border: 1px solid rgba(88, 101, 242, 0.3);
+  border-bottom-right-radius: 2px;
+}
+
+.chat-message-bubble.msg-teammate {
+  align-self: flex-start;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-bottom-left-radius: 2px;
+}
+
+.msg-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+
+.msg-avatar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.msg-sender {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.msg-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: auto;
+}
+
+.msg-body {
+  line-height: 1.4;
+  color: #dbdee1;
+  font-size: 12.5px;
+}
+
+.chat-input-form {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.chat-input {
+  flex: 1;
+  background: #383a40;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.chat-input:focus {
+  border-color: var(--accent);
+}
+
+.chat-send-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-send-btn:hover {
+  background: var(--accent-hover);
+}
+
+.chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 1.5px solid var(--bg-app);
+}
+
+/* ==========================================================================
+   Google Stitch AI Studio Drawer
+   ========================================================================== */
+.stitch-sidebar-drawer {
+  width: 440px;
+  min-width: 320px;
+  max-width: 48vw;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex-shrink: 0;
+  z-index: 30;
+  box-shadow: -6px 0 20px rgba(0, 0, 0, 0.4);
+}
+
+.stitch-drawer-header {
+  height: 42px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  user-select: none;
+}
+
+.stitch-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.stitch-pill-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: rgba(88, 101, 242, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(88, 101, 242, 0.3);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.stitch-nav-tabs {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 5px 10px;
+  gap: 5px;
+}
+
+.stitch-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stitch-tab:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.stitch-tab.active {
+  background: var(--bg-secondary);
+  color: #c084fc;
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.stitch-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--bg-primary);
+}
+
+.stitch-prompt-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stitch-textarea {
+  width: 100%;
+  background: #1e1f22;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 9px 11px;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 12.5px;
+  resize: vertical;
+  min-height: 70px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.stitch-textarea:focus {
+  border-color: var(--accent);
+}
+
+.stitch-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stitch-select {
+  background: #1e1f22;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  outline: none;
+  cursor: pointer;
+}
+
+.stitch-template-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 11px;
+  transition: all 0.15s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.stitch-template-card:hover {
+  background: var(--bg-hover);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.stitch-preview-container {
+  flex: 1;
+  min-height: 280px;
+  background: #ffffff;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.stitch-preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* ==========================================================================
+   VS Code Bottom Status Bar
+   ========================================================================== */
+.ide-statusbar {
+  height: 24px;
+  background: var(--vscode-blue);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 11px;
+  font-family: Consolas, monospace;
   user-select: none;
 }
 
 .statusbar-offline-mode {
-  background: #b91c1c !important;
+  background: var(--danger) !important;
 }
 
 .statusbar-left, .statusbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
-/* Modals */
+.statusbar-telemetry-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 10.5px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 1px 6px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+
+.statusbar-telemetry-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ==========================================================================
+   Clean Discord-Styled Modals (Identity, Room, Telemetry HUD)
+   ========================================================================== */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -650,31 +1117,33 @@ body {
 }
 
 .modal-content {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: 24px;
-  border-radius: 10px;
-  width: 360px;
-  max-width: 90vw;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  padding: 22px;
+  border-radius: 8px;
+  width: 380px;
+  max-width: 92vw;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
 }
 
 .modal-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 14px;
 }
 
 .modal-input {
   width: 100%;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background: #1e1f22;
+  border: 1px solid var(--border-subtle);
   color: var(--text-main);
-  padding: 8px 12px;
+  padding: 8px 11px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  transition: border-color 0.15s;
 }
 
 .modal-input:focus {
@@ -685,12 +1154,12 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .color-option {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
@@ -709,16 +1178,22 @@ body {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn-secondary {
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
   color: var(--text-main);
-  border: 1px solid var(--border-color);
-  padding: 6px 14px;
-  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  padding: 6px 13px;
+  border-radius: 5px;
+  font-size: 12px;
   cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
 }
 
 .btn-primary {
@@ -726,283 +1201,18 @@ body {
   color: #fff;
   border: none;
   padding: 6px 14px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* ==========================================================================
-   Feature 2: Offline-Synced Team Chat Drawer & Badges
-   ========================================================================== */
-.chat-badge {
-  background: var(--danger);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 999px;
-  margin-left: 4px;
-  display: inline-block;
-  line-height: 1.3;
-  animation: pulse-badge 1.8s infinite;
-}
-
-@keyframes pulse-badge {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
-
-.ide-chat-drawer {
-  width: 320px;
-  min-width: 280px;
-  max-width: 360px;
-  height: 100%;
-  min-height: 0;
-  flex-shrink: 0;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  z-index: 20;
-}
-
-.chat-header {
-  height: 42px;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-tertiary);
-  flex-shrink: 0;
-  user-select: none;
-}
-
-.chat-title-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.chat-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.chat-badge-offline {
-  font-size: 10px;
-  font-weight: 600;
-  background: #10b98122;
-  color: #34d399;
-  border: 1px solid #10b98144;
-  padding: 2px 6px;
-  border-radius: 999px;
-}
-
-.chat-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.chat-clear-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 11px;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: all 0.15s;
-}
-
-.chat-clear-btn:hover {
-  background: #ef444422;
-  color: #f87171;
-}
-
-.chat-close-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: all 0.15s;
-}
-
-.chat-close-btn:hover {
-  color: #fff;
-  background: var(--bg-hover);
-}
-
-.chat-messages-container {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 14px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.chat-empty-state {
-  margin: auto 0;
-  text-align: center;
-  padding: 20px 10px;
-  color: var(--text-muted);
-}
-
-.chat-empty-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
-  opacity: 0.6;
-}
-
-.chat-empty-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 6px;
-}
-
-.chat-empty-hint {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text-muted);
-  max-width: 250px;
-  margin: 0 auto;
-}
-
-.chat-message-bubble {
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  max-width: 88%;
-  word-break: break-word;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.chat-message-bubble.msg-self {
-  align-self: flex-end;
-  background: #1e3a5f;
-  border: 1px solid #3b82f644;
-  border-bottom-right-radius: 2px;
-}
-
-.chat-message-bubble.msg-teammate {
-  align-self: flex-start;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-bottom-left-radius: 2px;
-}
-
-.msg-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  font-size: 11px;
-}
-
-.msg-avatar-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.msg-sender {
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.msg-time {
-  font-size: 10px;
-  color: #71717a;
-  margin-left: auto;
-}
-
-.msg-body {
-  line-height: 1.45;
-  color: #e4e4e7;
-  font-size: 12.5px;
-}
-
-.chat-input-form {
-  padding: 10px 12px;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.chat-input {
-  flex: 1;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
-  color: var(--text-main);
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.chat-input:focus {
-  border-color: var(--accent);
-}
-
-.chat-send-btn {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: 5px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
-  flex-shrink: 0;
 }
 
-.chat-send-btn:hover:not(:disabled) {
+.btn-primary:hover {
   background: var(--accent-hover);
 }
 
-.chat-send-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ==========================================================================
-   Feature 6: CRDT Conflict & Merge Telemetry Visualizer
-   ========================================================================== */
-.statusbar-telemetry-btn {
-  background: #10b98122;
-  color: #34d399;
-  border: 1px solid #10b98155;
-  padding: 2px 9px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  transition: all 0.15s;
-}
-
-.statusbar-telemetry-btn:hover {
-  background: #10b9813d;
-  color: #fff;
-  border-color: #34d399;
-}
-
+/* Telemetry Modal HUD */
 .telemetry-modal-content {
   width: 650px;
   max-width: 95vw;
@@ -1030,16 +1240,16 @@ body {
 .telemetry-pill-verified {
   font-size: 11px;
   font-weight: 700;
-  background: #10b98122;
-  color: #34d399;
-  border: 1px solid #10b98144;
+  background: rgba(35, 165, 90, 0.15);
+  color: #46d682;
+  border: 1px solid rgba(35, 165, 90, 0.3);
   padding: 2px 8px;
   border-radius: 999px;
 }
 
 .telemetry-banner {
-  background: #172554;
-  border: 1px solid #3b82f644;
+  background: #1e293b;
+  border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: 8px;
   padding: 10px 14px;
   display: flex;
@@ -1049,7 +1259,7 @@ body {
 }
 
 .telemetry-banner-icon {
-  font-size: 22px;
+  font-size: 20px;
   flex-shrink: 0;
   line-height: 1;
 }
@@ -1064,8 +1274,7 @@ body {
 .telemetry-banner-text p {
   font-size: 11.5px;
   color: #cbd5e1;
-  line-height: 1.45;
-  margin: 0;
+  line-height: 1.4;
 }
 
 .telemetry-grid {
@@ -1075,34 +1284,24 @@ body {
   margin-bottom: 16px;
 }
 
-@media (max-width: 600px) {
-  .telemetry-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 .telemetry-card {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
   padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
 }
 
 .telemetry-card-label {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
   margin-bottom: 4px;
-  font-weight: 500;
 }
 
 .telemetry-card-val {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  line-height: 1.2;
-  margin-bottom: 2px;
-  font-family: monospace;
 }
 
 .text-green { color: #34d399; }
@@ -1111,117 +1310,103 @@ body {
 .text-purple { color: #c084fc; }
 
 .telemetry-card-sub {
-  font-size: 10px;
-  color: #71717a;
-  margin-top: auto;
+  font-size: 9.5px;
+  color: var(--text-dim);
+  margin-top: 3px;
 }
 
 .telemetry-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  padding: 12px;
   margin-bottom: 14px;
 }
 
 .telemetry-section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #e4e4e7;
-  margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 10px;
 }
 
 .telemetry-vectors-list {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  background: var(--bg-primary);
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
+  flex-direction: column;
+  gap: 6px;
 }
 
 .telemetry-vector-item {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: 5px 10px;
-  border-radius: 6px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  background: #1e1f22;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 11.5px;
 }
 
 .telemetry-vector-cid {
-  font-size: 10px;
-  color: #71717a;
-  font-family: monospace;
+  color: var(--text-dim);
+  font-size: 10.5px;
 }
 
 .telemetry-vector-clock {
-  font-size: 11px;
-  font-weight: 700;
-  color: #34d399;
-  background: #10b98118;
-  padding: 1px 6px;
-  border-radius: 4px;
-  border: 1px solid #10b98133;
-  font-family: monospace;
+  margin-left: auto;
+  font-family: Consolas, monospace;
+  color: #38bdf8;
+  font-weight: 600;
 }
 
 .telemetry-stream-box {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  background: #1e1f22;
+  border-radius: 5px;
   max-height: 160px;
   overflow-y: auto;
-  padding: 8px;
-  font-family: monospace;
-  font-size: 11px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  font-family: Consolas, monospace;
+  font-size: 11px;
 }
 
 .telemetry-log-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.02);
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 3px;
 }
 
 .telemetry-log-time {
-  color: #52525b;
+  color: #555555;
   font-size: 10px;
-  flex-shrink: 0;
 }
 
 .telemetry-log-tag {
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 9.5px;
   padding: 1px 5px;
   border-radius: 3px;
-  flex-shrink: 0;
-  letter-spacing: 0.3px;
-}
-
-.tag-remote {
-  background: #10b98122;
-  color: #34d399;
-  border: 1px solid #10b98144;
+  font-weight: 600;
 }
 
 .tag-local {
-  background: #3b82f622;
+  background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;
-  border: 1px solid #3b82f644;
+}
+
+.tag-remote {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
 }
 
 .tag-storage {
-  background: #8b5cf622;
+  background: rgba(139, 92, 246, 0.15);
   color: #c084fc;
-  border: 1px solid #8b5cf644;
 }
 
 .telemetry-log-msg {
@@ -1237,203 +1422,3 @@ body {
   font-style: italic;
   padding: 8px;
 }
-
-/* ==========================================================================
-   Google Stitch AI UI / Design-to-Code Studio & Glassmorphism Styling
-   ========================================================================== */
-.stitch-btn {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 5px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.stitch-btn:hover {
-  transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.5);
-  filter: brightness(1.1);
-}
-
-.stitch-btn.active {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  box-shadow: 0 0 16px rgba(124, 58, 237, 0.6);
-  border-color: #a78bfa;
-}
-
-.stitch-sidebar-drawer {
-  width: 460px;
-  min-width: 340px;
-  max-width: 48vw;
-  background: #141417;
-  border-left: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  flex-shrink: 0;
-  z-index: 30;
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
-}
-
-.stitch-drawer-header {
-  height: 48px;
-  background: #1a1a20;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  user-select: none;
-}
-
-.stitch-brand-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stitch-pill-badge {
-  font-size: 10px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #6366f122, #a855f722);
-  color: #c084fc;
-  border: 1px solid #a855f755;
-  padding: 2px 8px;
-  border-radius: 999px;
-  letter-spacing: 0.5px;
-}
-
-.stitch-nav-tabs {
-  display: flex;
-  background: #101014;
-  border-bottom: 1px solid var(--border-color);
-  padding: 6px 12px;
-  gap: 6px;
-}
-
-.stitch-tab {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.stitch-tab:hover {
-  color: var(--text-main);
-  background: var(--bg-hover);
-}
-
-.stitch-tab.active {
-  background: #24242d;
-  color: #c084fc;
-  border-color: #6366f144;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-
-.stitch-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.stitch-prompt-box {
-  background: #1c1c24;
-  border: 1px solid #363645;
-  border-radius: 10px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.stitch-textarea {
-  width: 100%;
-  background: #121217;
-  border: 1px solid #2d2d38;
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: #f4f4f5;
-  font-family: inherit;
-  font-size: 13px;
-  resize: vertical;
-  min-height: 72px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.stitch-textarea:focus {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
-}
-
-.stitch-controls-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.stitch-select {
-  background: #121217;
-  border: 1px solid #2d2d38;
-  color: #e4e4e7;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  outline: none;
-  cursor: pointer;
-}
-
-.stitch-template-card {
-  background: #1a1a22;
-  border: 1px solid #2d2d3a;
-  border-radius: 10px;
-  padding: 12px;
-  transition: all 0.2s;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.stitch-template-card:hover {
-  background: #22222d;
-  border-color: #8b5cf666;
-  transform: translateY(-1px);
-}
-
-.stitch-preview-container {
-  flex: 1;
-  min-height: 280px;
-  background: #ffffff;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #363645;
-  position: relative;
-}
-
-.stitch-preview-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
