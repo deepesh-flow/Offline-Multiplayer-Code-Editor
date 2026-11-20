@@ -1,57 +1,666 @@
-import { useEffect, useState } from "react";
-import Editor from "@monaco-editor/react";
-import * as Y from "yjs";
-import { WebsocketProvider } from "y-websocket";
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import Editor from '@monaco-editor/react';
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
+import { IndexeddbPersistence } from 'y-indexeddb';
+import { MonacoBinding } from 'y-monaco';
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:1234";
+import {
+  USER_COLORS,
+  getStoredUser,
+  saveStoredUser,
+  getLanguageByFilename,
+  updateRemoteCursorStyles,
+} from './utils/collab';
+import './App.css';
 
-const ydoc = new Y.Doc();
-new WebsocketProvider(WS_URL, "h9-room", ydoc);
-const filesMap = ydoc.getMap("files");
+const DEFAULT_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:1234';
+
+// Sample default files to populate on fresh project start
+const DEFAULT_FILES = {
+  'main.js': `// ⚡ Offline-First Multiplayer Code Editor (Problem H9)
+// Built for flaky hostel Wi-Fi: edits sync live, survive disconnects,
+// and merge cleanly without character loss using Yjs CRDTs.
+
+function runCollaborativeDemo() {
+  const team = "Code Fuzion Team";
+  console.log(\`[Online] \${team} is collaborating live!\`);
+  console.log("Try pressing 'Simulate Wi-Fi Drop', typing, and reconnecting.");
+}
+
+runCollaborativeDemo();
+`,
+  'index.html': `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Offline Multiplayer Demo</title>
+  <style>
+    body { font-family: sans-serif; background: #111; color: #eee; padding: 20px; }
+    h1 { color: #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>Hello from MultiCode!</h1>
+  <p>Real-time CRDT synchronization in action.</p>
+</body>
+</html>
+`,
+  'README.md': `# MultiCode Offline (H9 Problem Statement)
+
+### Features:
+1. **CRDT-based Sync (Yjs)**: Conflict-free real-time typing across 4+ users.
+2. **Offline-First with IndexedDB**: Edits persist locally when Wi-Fi drops.
+3. **Automatic Merge on Reconnect**: Zero lost characters when reconnecting.
+4. **Per-User Undo**: Ctrl+Z / Cmd+Z reverts only your own keystrokes!
+5. **Live Presence & Cursors**: See where teammates are typing in real-time.
+
+### How to Demo:
+- Click **"Simulate Wi-Fi Drop"** in the top bar.
+- Edit this file or create a new one.
+- In another browser tab/window, make simultaneous edits.
+- Click **"Reconnect"** and observe clean automatic merge!
+`,
+};
 
 function App() {
-  const [fileNames, setFileNames] = useState([]);
-
-  useEffect(() => {
-    const update = () => setFileNames(Array.from(filesMap.keys()).sort());
-    update();
-    filesMap.observe(update);
-    return () => filesMap.unobserve(update);
+  // Query param for room code, e.g. ?room=project-demo
+  const roomName = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('room') || 'h9-room';
   }, []);
 
-  function createFile() {
-    const name = prompt("File name (e.g. main.py):");
-    if (!name || !name.trim()) return;
-    const clean = name.trim();
+  const [currentUser, setCurrentUser] = useState(() => getStoredUser());
+  const [fileList, setFileList] = useState([]);
+  const [activeFile, setActiveFile] = useState('main.js');
+  const [wsStatus, setWsStatus] = useState('connecting'); // 'connecting' | 'connected' | 'disconnected'
+  const [isIndexedDBSynced, setIsIndexedDBSynced] = useState(false);
+  const [isSimulatedOffline, setIsSimulatedOffline] = useState(false);
+  const [collaborators, setCollaborators] = useState([]);
+  const [editorCursorPos, setEditorCursorPos] = useState({ line: 1, col: 1 });
+
+  // Modals
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showNewFileModal, setShowNewFileModal] = useState(false);
+  const [newFileNameInput, setNewFileNameInput] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState(false);
+
+  // Core references
+  const ydocRef = useRef(null);
+  const wsProviderRef = useRef(null);
+  const idbProviderRef = useRef(null);
+  const editorRef = useRef(null);
+  const monacoRef = useRef(null);
+  const bindingRef = useRef(null);
+  const undoManagerRef = useRef(null);
+
+  // Initialize Yjs, IndexedDB, and WebSocket Provider
+  useEffect(() => {
+    const ydoc = new Y.Doc();
+    ydocRef.current = ydoc;
+
+    // 1. Client-side IndexedDB persistence for offline-first support
+    const idbProvider = new IndexeddbPersistence(roomName, ydoc);
+    idbProviderRef.current = idbProvider;
+
+    idbProvider.on('synced', () => {
+      setIsIndexedDBSynced(true);
+      // If doc is completely fresh in IndexedDB, seed default files
+      const filesMap = ydoc.getMap('files');
+      if (filesMap.size === 0) {
+        Object.entries(DEFAULT_FILES).forEach(([name, content]) => {
+          filesMap.set(name, { createdAt: Date.now() });
+          const ytext = ydoc.getText(`file:${name}`);
+          if (ytext.length === 0) {
+            ytext.insert(0, content);
+          }
+        });
+      }
+    });
+
+    // 2. WebSocket provider for real-time collaboration
+    const wsProvider = new WebsocketProvider(DEFAULT_WS_URL, roomName, ydoc);
+    wsProviderRef.current = wsProvider;
+
+    wsProvider.on('status', ({ status }) => {
+      setWsStatus(status);
+    });
+
+    // 3. Awareness setup for live cursors and user presence
+    const awareness = wsProvider.awareness;
+
+    const handleAwarenessChange = () => {
+      const states = Array.from(awareness.getStates().entries());
+      const peers = states
+        .filter(([, state]) => state && state.user)
+        .map(([clientId, state]) => ({
+          clientId,
+          isSelf: clientId === ydoc.clientID,
+          ...state.user,
+        }));
+      setCollaborators(peers);
+      updateRemoteCursorStyles(awareness);
+    };
+
+    awareness.on('change', handleAwarenessChange);
+
+    // 4. Track file list changes from shared files Y.Map
+    const filesMap = ydoc.getMap('files');
+    const handleFilesChange = () => {
+      const names = Array.from(filesMap.keys()).sort();
+      setFileList(names);
+      // Auto-select first file if active file was deleted
+      setActiveFile((prev) => {
+        if (names.length > 0 && !names.includes(prev)) {
+          return names[0];
+        }
+        return prev;
+      });
+    };
+
+    filesMap.observe(handleFilesChange);
+    handleFilesChange();
+
+    return () => {
+      awareness.off('change', handleAwarenessChange);
+      filesMap.unobserve(handleFilesChange);
+      wsProvider.destroy();
+      idbProvider.destroy();
+      ydoc.destroy();
+    };
+  }, [roomName]);
+
+  // Keep awareness synced when user changes active file
+  useEffect(() => {
+    if (wsProviderRef.current?.awareness) {
+      wsProviderRef.current.awareness.setLocalStateField('user', {
+        name: currentUser.name,
+        color: currentUser.color,
+        currentFile: activeFile,
+      });
+    }
+  }, [activeFile, currentUser]);
+
+  // Bind Monaco Editor to the active file's Y.Text with scoped Y.UndoManager
+  const bindEditorToFile = (filename) => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    const ydoc = ydocRef.current;
+    const wsProvider = wsProviderRef.current;
+
+    if (!editor || !monaco || !ydoc || !wsProvider || !filename) return;
+
+    // Clean up existing binding and undoManager
+    if (bindingRef.current) {
+      bindingRef.current.destroy();
+      bindingRef.current = null;
+    }
+    if (undoManagerRef.current) {
+      undoManagerRef.current.destroy();
+      undoManagerRef.current = null;
+    }
+
+    const ytext = ydoc.getText(`file:${filename}`);
+    const model = editor.getModel();
+
+    if (model) {
+      // Set syntax highlighting language based on file extension
+      const lang = getLanguageByFilename(filename);
+      monaco.editor.setModelLanguage(model, lang);
+
+      // Create MonacoBinding with awareness for remote cursor display
+      const binding = new MonacoBinding(
+        ytext,
+        model,
+        new Set([editor]),
+        wsProvider.awareness
+      );
+      bindingRef.current = binding;
+
+      // Robust Per-User Undo:
+      // Track ONLY operations originating from this local MonacoBinding!
+      // This ensures Ctrl+Z only inverts changes you made, ignoring teammates' concurrent edits.
+      const undoManager = new Y.UndoManager(ytext, {
+        trackedOrigins: new Set([binding]),
+      });
+      undoManagerRef.current = undoManager;
+
+      // Override Monaco's default undo/redo keyboard shortcuts
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => {
+        undoManager.undo();
+      });
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyY, () => {
+        undoManager.redo();
+      });
+      editor.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ,
+        () => {
+          undoManager.redo();
+        }
+      );
+    }
+  };
+
+  // Re-bind when activeFile changes or editor mounts
+  useEffect(() => {
+    if (editorRef.current && monacoRef.current) {
+      bindEditorToFile(activeFile);
+    }
+  }, [activeFile]);
+
+  function handleEditorMount(editor, monaco) {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
+    // Track cursor line & column
+    editor.onDidChangeCursorPosition((e) => {
+      setEditorCursorPos({
+        line: e.position.lineNumber,
+        col: e.position.column,
+      });
+    });
+
+    bindEditorToFile(activeFile);
+  }
+
+  // File Operations
+  function handleCreateFile(e) {
+    e.preventDefault();
+    const clean = newFileNameInput.trim();
+    if (!clean) return;
+
+    const filesMap = ydocRef.current?.getMap('files');
+    if (!filesMap) return;
+
     if (filesMap.has(clean)) {
-      alert("A file with that name already exists.");
+      alert('A file with that name already exists in this project.');
       return;
     }
-    filesMap.set(clean, new Y.Text());
+
+    // Register file in Y.Map and initialize its Y.Text
+    filesMap.set(clean, { createdAt: Date.now() });
+    const ytext = ydocRef.current.getText(`file:${clean}`);
+    if (ytext.length === 0) {
+      ytext.insert(0, `// ${clean}\n`);
+    }
+
+    setActiveFile(clean);
+    setNewFileNameInput('');
+    setShowNewFileModal(false);
+  }
+
+  function handleDeleteFile(fileName, e) {
+    e.stopPropagation();
+    if (fileList.length <= 1) {
+      alert('Cannot delete the last remaining file in the project.');
+      return;
+    }
+    const confirmed = window.confirm(`Are you sure you want to delete "${fileName}"?`);
+    if (!confirmed) return;
+
+    const filesMap = ydocRef.current?.getMap('files');
+    if (filesMap && filesMap.has(fileName)) {
+      filesMap.delete(fileName);
+    }
+  }
+
+  // Network Simulation (Bad Hostel Wi-Fi test)
+  function handleToggleSimulateOffline() {
+    const ws = wsProviderRef.current;
+    if (!ws) return;
+
+    if (isSimulatedOffline) {
+      // Reconnect
+      ws.connect();
+      setIsSimulatedOffline(false);
+    } else {
+      // Disconnect
+      ws.disconnect();
+      setIsSimulatedOffline(true);
+      setWsStatus('disconnected');
+    }
+  }
+
+  // Per-User Undo/Redo handlers
+  function handleUndo() {
+    if (undoManagerRef.current) {
+      undoManagerRef.current.undo();
+    }
+  }
+
+  function handleRedo() {
+    if (undoManagerRef.current) {
+      undoManagerRef.current.redo();
+    }
+  }
+
+  // User Profile
+  function handleSaveProfile(newName, newColor) {
+    const updated = { name: newName, color: newColor };
+    setCurrentUser(updated);
+    saveStoredUser(updated);
+    if (wsProviderRef.current?.awareness) {
+      wsProviderRef.current.awareness.setLocalStateField('user', {
+        ...updated,
+        currentFile: activeFile,
+      });
+    }
+    setShowProfileModal(false);
+  }
+
+  function handleCopyShareLink() {
+    navigator.clipboard.writeText(window.location.href);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
+  }
+
+  // Peers active on specific file
+  const getPeersOnFile = (filename) => {
+    return collaborators.filter((p) => p.currentFile === filename);
+  };
+
+  return (
+    <div className="ide-container">
+      {/* Header Bar */}
+      <header className="ide-header">
+        <div className="header-left">
+          <div className="brand-badge">
+            <span className="brand-icon">⚡</span>
+            <span>MultiCode</span>
+            <span className="brand-tag">H9 Offline Ready</span>
+          </div>
+
+          <div className="room-pill">
+            <span>Room:</span>
+            <strong>{roomName}</strong>
+            <button
+              className="copy-btn"
+              title="Copy shareable link"
+              onClick={handleCopyShareLink}
+            >
+              {copyFeedback ? '✓ Copied' : '🔗 Share'}
+            </button>
+          </div>
+        </div>
+
+        <div className="header-center">
+          {/* Connection Status Badge */}
+          {wsStatus === 'connected' && !isSimulatedOffline ? (
+            <div className="status-indicator status-online" title="Real-time WebSocket connected and syncing">
+              <span className="status-dot"></span>
+              <span>Online</span>
+            </div>
+          ) : isSimulatedOffline ? (
+            <div className="status-indicator status-offline" title="Simulated Wi-Fi disconnect. Changes saved locally to IndexedDB!">
+              <span className="status-dot"></span>
+              <span>Offline (Simulated)</span>
+            </div>
+          ) : wsStatus === 'connecting' ? (
+            <div className="status-indicator status-syncing" title="Connecting to collaboration server...">
+              <span className="status-dot"></span>
+              <span>Connecting...</span>
+            </div>
+          ) : (
+            <div className="status-indicator status-offline" title="No network connection. Working completely offline via IndexedDB.">
+              <span className="status-dot"></span>
+              <span>Offline</span>
+            </div>
+          )}
+
+          {/* Simulate Bad Hostel Wi-Fi Button */}
+          <button
+            className={`btn-simulate ${isSimulatedOffline ? 'active' : ''}`}
+            onClick={handleToggleSimulateOffline}
+            title="Click to simulate hostel Wi-Fi drop and test offline merge"
+          >
+            {isSimulatedOffline ? '📶 Reconnect Wi-Fi' : '🔌 Simulate Wi-Fi Drop'}
+          </button>
+
+          {/* Undo / Redo Toolbar */}
+          <button className="icon-btn" onClick={handleUndo} title="Per-User Undo (Ctrl+Z) - Only undoes your own edits">
+            ↶ Undo
+          </button>
+          <button className="icon-btn" onClick={handleRedo} title="Per-User Redo (Ctrl+Y)">
+            ↷ Redo
+          </button>
+        </div>
+
+        <div className="header-right">
+          {/* Collaborators Active Tray */}
+          <div className="collaborators-tray">
+            {collaborators.map((c) => (
+              <div
+                key={c.clientId}
+                className="user-badge"
+                title={`${c.name} ${c.isSelf ? '(You)' : ''} - Editing: ${c.currentFile || 'none'}`}
+                onClick={() => c.isSelf && setShowProfileModal(true)}
+              >
+                <span
+                  className="user-avatar-dot"
+                  style={{ backgroundColor: c.color }}
+                ></span>
+                <span>{c.isSelf ? `${c.name} (You)` : c.name}</span>
+              </div>
+            ))}
+            <span className="user-count-chip" title="Connected teammates">
+              👥 {collaborators.length}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Workspace Layout */}
+      <div className="ide-body">
+        {/* Sidebar File Explorer */}
+        <aside className="ide-sidebar">
+          <div className="sidebar-header">
+            <span className="sidebar-title">Files</span>
+            <button
+              className="btn-new-file"
+              onClick={() => setShowNewFileModal(true)}
+              title="Create new file"
+            >
+              + New File
+            </button>
+          </div>
+
+          <div className="file-list">
+            {fileList.map((filename) => {
+              const peersOnFile = getPeersOnFile(filename);
+              return (
+                <div
+                  key={filename}
+                  className={`file-item ${activeFile === filename ? 'active' : ''}`}
+                  onClick={() => setActiveFile(filename)}
+                >
+                  <div className="file-info">
+                    <span className="file-icon">📄</span>
+                    <span>{filename}</span>
+                  </div>
+
+                  {/* Remote peers currently editing this file */}
+                  <div className="file-collaborators">
+                    {peersOnFile.map((p) => (
+                      <span
+                        key={p.clientId}
+                        className="file-collab-dot"
+                        style={{ backgroundColor: p.color }}
+                        title={`${p.name} is on this file`}
+                      ></span>
+                    ))}
+                  </div>
+
+                  {fileList.length > 1 && (
+                    <button
+                      className="file-delete-btn"
+                      onClick={(e) => handleDeleteFile(filename, e)}
+                      title="Delete file"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Quick Viva & Demo Notes in Sidebar */}
+          <div className="sidebar-footer">
+            <strong>💡 Quick Viva Guide:</strong>
+            <div>• <b>CRDT (Yjs)</b>: Conflict-free merge</div>
+            <div>• <b>IndexedDB</b>: Offline storage</div>
+            <div>• <b>UndoManager</b>: Tracks local origin only</div>
+          </div>
+        </aside>
+
+        {/* Editor Area */}
+        <main className="ide-workspace">
+          {/* Tab Bar */}
+          <div className="tab-bar">
+            <div className="editor-tab">
+              <span>📄 {activeFile}</span>
+              <span className="editor-tab-lang">
+                {getLanguageByFilename(activeFile)}
+              </span>
+            </div>
+          </div>
+
+          {/* Monaco Editor Canvas */}
+          <div className="monaco-wrapper">
+            <Editor
+              height="100%"
+              theme="vs-dark"
+              options={{
+                fontSize: 14,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                wordWrap: 'on',
+                smoothScrolling: true,
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: 'on',
+              }}
+              onMount={handleEditorMount}
+            />
+          </div>
+        </main>
+      </div>
+
+      {/* Bottom Status Bar */}
+      <footer className={`ide-statusbar ${isSimulatedOffline ? 'statusbar-offline-mode' : ''}`}>
+        <div className="statusbar-left">
+          <span>
+            {isIndexedDBSynced ? '💾 IndexedDB: Synced (Offline Safe)' : '💾 IndexedDB: Initializing...'}
+          </span>
+          <span>
+            {isSimulatedOffline
+              ? '⚠️ Wi-Fi Disconnected — Editing Offline'
+              : wsStatus === 'connected'
+              ? '⚡ WebSocket: Live Connected'
+              : '⚡ WebSocket: Reconnecting...'}
+          </span>
+        </div>
+        <div className="statusbar-right">
+          <span>Ln {editorCursorPos.line}, Col {editorCursorPos.col}</span>
+          <span>UTF-8</span>
+          <span>{getLanguageByFilename(activeFile).toUpperCase()}</span>
+        </div>
+      </footer>
+
+      {/* New File Modal */}
+      {showNewFileModal && (
+        <div className="modal-overlay" onClick={() => setShowNewFileModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Create New File</h3>
+            <form onSubmit={handleCreateFile}>
+              <input
+                type="text"
+                className="modal-input"
+                placeholder="e.g. script.py, styles.css, app.js"
+                autoFocus
+                value={newFileNameInput}
+                onChange={(e) => setNewFileNameInput(e.target.value)}
+              />
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowNewFileModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* User Profile / Name & Color Modal */}
+      {showProfileModal && (
+        <ProfileModal
+          currentUser={currentUser}
+          onSave={handleSaveProfile}
+          onClose={() => setShowProfileModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProfileModal({ currentUser, onSave, onClose }) {
+  const [name, setName] = useState(currentUser.name);
+  const [color, setColor] = useState(currentUser.color);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSave(name.trim(), color);
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#1e1e1e" }}>
-      <div
-        style={{
-          width: 220,
-          borderRight: "1px solid #333",
-          color: "#ddd",
-          fontFamily: "sans-serif",
-          padding: 8,
-        }}
-      >
-        <button onClick={createFile} style={{ width: "100%", marginBottom: 8 }}>
-          + New file
-        </button>
-        {fileNames.map((name) => (
-          <div key={name} style={{ padding: "4px 6px" }}>
-            {name}
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <h3 className="modal-title">Customize Your Identity</h3>
+        <form onSubmit={handleSubmit}>
+          <label style={{ fontSize: 12, color: '#a1a1aa', display: 'block', marginBottom: 6 }}>
+            Display Name:
+          </label>
+          <input
+            type="text"
+            className="modal-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            autoFocus
+          />
+
+          <label style={{ fontSize: 12, color: '#a1a1aa', display: 'block', marginBottom: 8 }}>
+            Cursor & Avatar Color:
+          </label>
+          <div className="color-picker-grid">
+            {USER_COLORS.map((c) => (
+              <button
+                type="button"
+                key={c}
+                className={`color-option ${color === c ? 'selected' : ''}`}
+                style={{ backgroundColor: c }}
+                onClick={() => setColor(c)}
+              />
+            ))}
           </div>
-        ))}
-      </div>
-      <div style={{ flex: 1 }}>
-        <Editor height="100%" defaultLanguage="javascript" theme="vs-dark" />
+
+          <div className="modal-actions">
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary">
+              Save Changes
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
