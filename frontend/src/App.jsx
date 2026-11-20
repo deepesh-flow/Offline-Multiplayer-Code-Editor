@@ -82,6 +82,7 @@ function App() {
   // Modals
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNewFileModal, setShowNewFileModal] = useState(false);
+  const [showRoomModal, setShowRoomModal] = useState(false);
   const [newFileNameInput, setNewFileNameInput] = useState('');
   const [copyFeedback, setCopyFeedback] = useState(false);
 
@@ -354,6 +355,19 @@ function App() {
     setTimeout(() => setCopyFeedback(false), 2000);
   }
 
+  function handleSwitchRoom(targetRoom) {
+    const clean = targetRoom.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    if (!clean) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', clean);
+    window.location.href = url.toString();
+  }
+
+  function handleCreateRandomRoom() {
+    const randomId = Math.random().toString(36).substring(2, 8);
+    handleSwitchRoom(`room-${randomId}`);
+  }
+
   // Peers active on specific file
   const getPeersOnFile = (filename) => {
     return collaborators.filter((p) => p.currentFile === filename);
@@ -375,10 +389,25 @@ function App() {
             <strong>{roomName}</strong>
             <button
               className="copy-btn"
-              title="Copy shareable link"
+              title="Copy shareable invite link"
               onClick={handleCopyShareLink}
             >
-              {copyFeedback ? '✓ Copied' : '🔗 Share'}
+              {copyFeedback ? '✓ Copied' : '🔗 Copy Link'}
+            </button>
+            <button
+              className="copy-btn"
+              style={{
+                marginLeft: 4,
+                background: '#3b82f633',
+                color: '#93c5fd',
+                padding: '2px 7px',
+                borderRadius: 4,
+                fontWeight: 600,
+              }}
+              title="Create or switch rooms"
+              onClick={() => setShowRoomModal(true)}
+            >
+              ➕ Switch / New
             </button>
           </div>
         </div>
@@ -606,6 +635,97 @@ function App() {
           onClose={() => setShowProfileModal(false)}
         />
       )}
+
+      {/* Room Management Modal */}
+      {showRoomModal && (
+        <RoomModal
+          currentRoom={roomName}
+          onSwitchRoom={handleSwitchRoom}
+          onCreateRandomRoom={handleCreateRandomRoom}
+          onClose={() => setShowRoomModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function RoomModal({ currentRoom, onSwitchRoom, onCreateRandomRoom, onClose }) {
+  const [customRoomInput, setCustomRoomInput] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  function handleCustomSubmit(e) {
+    e.preventDefault();
+    if (!customRoomInput.trim()) return;
+    onSwitchRoom(customRoomInput.trim());
+  }
+
+  function handleCopyCurrent() {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+        <h3 className="modal-title">Collaborative Rooms</h3>
+
+        {/* Current Room Info & Direct Share Link */}
+        <div style={{ background: 'var(--bg-primary)', padding: 12, borderRadius: 6, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: '#a1a1aa', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
+            Current Room:
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#60a5fa', marginBottom: 8 }}>
+            {currentRoom}
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ width: '100%', fontSize: 13, padding: '7px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}
+            onClick={handleCopyCurrent}
+          >
+            {copied ? '✓ Invite Link Copied to Clipboard!' : '🔗 Copy Shareable Invite Link'}
+          </button>
+        </div>
+
+        {/* Option 1: Quick Generate New Room */}
+        <div style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ width: '100%', fontSize: 13, padding: '8px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}
+            onClick={onCreateRandomRoom}
+          >
+            🎲 Generate New Private Room
+          </button>
+        </div>
+
+        {/* Option 2: Custom Room Name */}
+        <form onSubmit={handleCustomSubmit}>
+          <label style={{ fontSize: 12, color: '#a1a1aa', display: 'block', marginBottom: 6 }}>
+            Or join/create custom room name:
+          </label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <input
+              type="text"
+              className="modal-input"
+              style={{ marginBottom: 0 }}
+              placeholder="e.g. project-x, team-alpha"
+              value={customRoomInput}
+              onChange={(e) => setCustomRoomInput(e.target.value)}
+            />
+            <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
+              Go
+            </button>
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
