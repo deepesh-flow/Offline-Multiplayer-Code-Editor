@@ -70,6 +70,14 @@ function App() {
   const [consoleLogs, setConsoleLogs] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
 
+  // Offline-Synced Team Chat (Feature 2)
+  const [chatMessages, setChatMessages] = useState([]);
+  const [showChat, setShowChat] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [chatInputText, setChatInputText] = useState('');
+  const showChatRef = useRef(false);
+  const chatEndRef = useRef(null);
+
   // Core references
   const ydocRef = useRef(null);
   const wsProviderRef = useRef(null);
@@ -147,14 +155,56 @@ function App() {
     filesMap.observe(handleFilesChange);
     handleFilesChange();
 
+    // 5. Offline-synced team chat via Y.Array
+    const chatArray = ydoc.getArray('chat-messages');
+    const handleChatChange = (event) => {
+      const msgs = chatArray.toArray();
+      setChatMessages(msgs);
+      if (!showChatRef.current && event && event.delta) {
+        const addedCount = event.delta.reduce(
+          (acc, d) => acc + (d.insert ? d.insert.length : 0),
+          0
+        );
+        if (addedCount > 0) {
+          setUnreadChatCount((prev) => prev + addedCount);
+        }
+      }
+    };
+
+    chatArray.observe(handleChatChange);
+    handleChatChange();
+
     return () => {
       awareness.off('change', handleAwarenessChange);
       filesMap.unobserve(handleFilesChange);
+      chatArray.unobserve(handleChatChange);
       wsProvider.destroy();
       idbProvider.destroy();
       ydoc.destroy();
     };
   }, [roomName]);
+
+  // Keep ref synced to avoid stale closures in Yjs observer
+  useEffect(() => {
+    showChatRef.current = showChat;
+  }, [showChat]);
+
+  function handleToggleChat() {
+    setShowChat((prev) => {
+      const next = !prev;
+      if (next) {
+        setUnreadChatCount(0);
+      }
+      return next;
+    });
+  }
+
+  // Auto-scroll chat to bottom when new messages arrive or drawer opens
+  useEffect(() => {
+    if (showChat) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, showChat]);
 
   // Keep awareness synced when user changes active file
   useEffect(() => {
@@ -365,6 +415,36 @@ function App() {
   function handleCreateRandomRoom() {
     const randomId = Math.random().toString(36).substring(2, 8);
     handleSwitchRoom(`room-${randomId}`);
+  }
+
+  // Feature 2: Offline-Synced Team Chat Handlers
+  function handleSendChatMessage(e) {
+    e.preventDefault();
+    const clean = chatInputText.trim();
+    if (!clean) return;
+
+    const chatArray = ydocRef.current?.getArray('chat-messages');
+    if (!chatArray) return;
+
+    const newMsg = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      senderName: currentUser.name,
+      senderColor: currentUser.color,
+      text: clean,
+      timestamp: Date.now(),
+    };
+
+    chatArray.push([newMsg]);
+    setChatInputText('');
+  }
+
+  function handleClearChat() {
+    const confirmed = window.confirm('Clear all chat messages in this room?');
+    if (!confirmed) return;
+    const chatArray = ydocRef.current?.getArray('chat-messages');
+    if (chatArray && chatArray.length > 0) {
+      chatArray.delete(0, chatArray.length);
+    }
   }
 
   // Helper to format arguments nicely for terminal display
@@ -655,6 +735,21 @@ function App() {
           >
             💻 Terminal
           </button>
+          <button
+            className={`icon-btn ${showChat ? 'active' : ''}`}
+            onClick={handleToggleChat}
+            title="Toggle Offline-Synced Team Chat"
+            style={{
+              background: showChat ? '#3b82f633' : undefined,
+              color: showChat ? '#60a5fa' : undefined,
+              position: 'relative',
+            }}
+          >
+            💬 Chat
+            {unreadChatCount > 0 && !showChat && (
+              <span className="chat-badge">{unreadChatCount}</span>
+            )}
+          </button>
         </div>
 
         <div className="header-right">
@@ -777,6 +872,20 @@ function App() {
               >
                 💻 Terminal {showConsole ? '▼' : '▲'}
               </button>
+              <button
+                className="icon-btn"
+                onClick={handleToggleChat}
+                title="Toggle Team Chat"
+                style={{
+                  background: showChat ? '#3b82f633' : undefined,
+                  color: showChat ? '#60a5fa' : undefined,
+                  position: 'relative',
+                }}
+              >
+                💬 Chat {unreadChatCount > 0 && !showChat && (
+                  <span className="chat-badge">{unreadChatCount}</span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -842,6 +951,97 @@ function App() {
             </div>
           )}
         </main>
+
+        {/* Collapsible Offline-Synced Team Chat Drawer (Feature 2) */}
+        {showChat && (
+          <aside className="ide-chat-drawer">
+            <div className="chat-header">
+              <div className="chat-title-group">
+                <span className="chat-title">💬 Team Chat</span>
+                <span className="chat-badge-offline">Offline Synced</span>
+              </div>
+              <div className="chat-header-actions">
+                {chatMessages.length > 0 && (
+                  <button
+                    className="chat-clear-btn"
+                    onClick={handleClearChat}
+                    title="Clear chat history in this room"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  className="chat-close-btn"
+                  onClick={() => setShowChat(false)}
+                  title="Close chat drawer"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="chat-messages-container">
+              {chatMessages.length === 0 ? (
+                <div className="chat-empty-state">
+                  <div className="chat-empty-icon">💭</div>
+                  <div className="chat-empty-text">No messages yet.</div>
+                  <div className="chat-empty-hint">
+                    Type a message below to test live team chat! Messages are stored in IndexedDB and sync automatically across peers even if Wi-Fi drops.
+                  </div>
+                </div>
+              ) : (
+                chatMessages.map((msg) => {
+                  const isSelf = msg.senderName === currentUser.name;
+                  const timeStr = msg.timestamp
+                    ? new Date(msg.timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '';
+                  return (
+                    <div
+                      key={msg.id || `${msg.senderName}-${msg.timestamp}`}
+                      className={`chat-message-bubble ${isSelf ? 'msg-self' : 'msg-teammate'}`}
+                    >
+                      <div className="msg-header">
+                        <span
+                          className="msg-avatar-dot"
+                          style={{ backgroundColor: msg.senderColor || '#3b82f6' }}
+                        ></span>
+                        <span className="msg-sender">{isSelf ? 'You' : msg.senderName}</span>
+                        <span className="msg-time">{timeStr}</span>
+                      </div>
+                      <div className="msg-body">{msg.text}</div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <form className="chat-input-form" onSubmit={handleSendChatMessage}>
+              <input
+                type="text"
+                className="chat-input"
+                placeholder={
+                  isSimulatedOffline
+                    ? 'Chat offline (synced on reconnect)...'
+                    : 'Type a message... (Enter to send)'
+                }
+                value={chatInputText}
+                onChange={(e) => setChatInputText(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="chat-send-btn"
+                disabled={!chatInputText.trim()}
+                title="Send message"
+              >
+                Send
+              </button>
+            </form>
+          </aside>
+        )}
       </div>
 
       {/* Bottom Status Bar */}
