@@ -4,6 +4,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import { MonacoBinding } from 'y-monaco';
+import JSZip from 'jszip';
 
 import {
   USER_COLORS,
@@ -78,6 +79,10 @@ function App() {
   const [clearedAtMap, setClearedAtMap] = useState({});
   const showChatRef = useRef(false);
   const chatEndRef = useRef(null);
+
+  // Export Project as ZIP (Feature 3)
+  const [isExportingZip, setIsExportingZip] = useState(false);
+  const [exportFeedback, setExportFeedback] = useState(false);
 
   // Core references
   const ydocRef = useRef(null);
@@ -481,6 +486,55 @@ function App() {
     }
   }
 
+  // Feature 3: Export Project as ZIP (100% Client-Side & Works Offline)
+  async function handleExportZip() {
+    const ydoc = ydocRef.current;
+    if (!ydoc) return;
+
+    setIsExportingZip(true);
+    try {
+      const zip = new JSZip();
+      const filesMap = ydoc.getMap('files');
+      const filenames = Array.from(filesMap.keys()).sort();
+
+      if (filenames.length === 0) {
+        alert('No files found to export.');
+        setIsExportingZip(false);
+        return;
+      }
+
+      // Read each collaborative file directly from CRDT state
+      filenames.forEach((filename) => {
+        let content = '';
+        if (editorRef.current && activeFile === filename) {
+          content = editorRef.current.getValue();
+        } else {
+          content = ydoc.getText(`file:${filename}`)?.toString() || '';
+        }
+        zip.file(filename, content);
+      });
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const cleanRoomName = roomName.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const downloadUrl = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${cleanRoomName}-project.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+
+      setExportFeedback(true);
+      setTimeout(() => setExportFeedback(false), 2500);
+    } catch (err) {
+      console.error('Failed to export ZIP archive:', err);
+      alert('Could not export ZIP: ' + err.message);
+    } finally {
+      setIsExportingZip(false);
+    }
+  }
+
   // Helper to format arguments nicely for terminal display
   function formatArg(arg) {
     if (arg === null) return 'null';
@@ -784,6 +838,20 @@ function App() {
               <span className="chat-badge">{unreadChatCount}</span>
             )}
           </button>
+
+          {/* Feature 3: Export Project as ZIP */}
+          <button
+            className="icon-btn"
+            onClick={handleExportZip}
+            disabled={isExportingZip}
+            title="Download entire project workspace as .zip file (100% offline-ready)"
+            style={{
+              color: exportFeedback ? '#34d399' : undefined,
+              borderColor: exportFeedback ? '#10b98166' : undefined,
+            }}
+          >
+            {isExportingZip ? '⏳ Zipping...' : exportFeedback ? '✓ ZIP Saved!' : '💾 Export ZIP'}
+          </button>
         </div>
 
         <div className="header-right">
@@ -816,13 +884,23 @@ function App() {
         <aside className="ide-sidebar">
           <div className="sidebar-header">
             <span className="sidebar-title">Files</span>
-            <button
-              className="btn-new-file"
-              onClick={() => setShowNewFileModal(true)}
-              title="Create new file"
-            >
-              + New File
-            </button>
+            <div className="sidebar-header-actions">
+              <button
+                className="btn-new-file"
+                onClick={() => setShowNewFileModal(true)}
+                title="Create new file"
+              >
+                + New
+              </button>
+              <button
+                className="btn-export-zip"
+                onClick={handleExportZip}
+                disabled={isExportingZip}
+                title="Download entire workspace as a .zip file (100% offline-ready)"
+              >
+                {isExportingZip ? '⏳' : exportFeedback ? '✓' : '💾 ZIP'}
+              </button>
+            </div>
           </div>
 
           <div className="file-list">
@@ -870,7 +948,8 @@ function App() {
             <strong>💡 Quick Viva Guide:</strong>
             <div>• <b>CRDT (Yjs)</b>: Conflict-free merge</div>
             <div>• <b>IndexedDB</b>: Offline storage</div>
-            <div>• <b>UndoManager</b>: Tracks local origin only</div>
+            <div>• <b>UndoManager</b>: Scoped local origin</div>
+            <div>• <b>ZIP Export</b>: 100% client-side</div>
           </div>
         </aside>
 

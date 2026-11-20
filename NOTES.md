@@ -102,7 +102,21 @@
 
 ---
 
-## 🌐 9. Rooms & Deployment (Render + Netlify)
+## 💾 9. Export Project as ZIP (`JSZip`)
+
+### Q: "How does 'Export ZIP' work if there is no backend packaging server?"
+* **The Fresher Explanation**:
+  > *"Usually, downloading a ZIP requires sending files to a backend server to compress them. But in our offline-first scenario, if Wi-Fi is down, you still need to submit or run your code!*  
+  >  
+  > *We bundle **JSZip** directly into the frontend. When you click **'💾 Export ZIP'**:*  
+  > *1. It reads all files and contents directly from our collaborative `Y.Map` and active editor models.*  
+  > *2. It compresses all files into a real `.zip` binary archive **100% inside your browser's memory**.*  
+  > *3. It triggers a direct client-side download `<a download="room-project.zip">`.*  
+  > *It works completely offline with zero server calls!"*
+
+---
+
+## 🌐 10. Rooms & Deployment (Render + Netlify)
 
 ### Q: "How do different teams get their own private rooms?"
 * **The Fresher Explanation**:
@@ -115,7 +129,7 @@
 
 ---
 
-## 🎯 10. The 2-Minute Live Demo Script for Judges
+## 🎯 11. The 2-Minute Live Demo Script for Judges
 
 When judges come to your desk, follow this exact sequence:
 
@@ -137,13 +151,15 @@ When judges come to your desk, follow this exact sequence:
    - In Window 1, click **"📶 Reconnect Wi-Fi"**.
    - **Point to the screen**: *"Watch both screens merge automatically: the code merges cleanly and the chat message immediately appears in Window 2 with unread badge notification. Zero lost characters, zero lost messages."*
 
-4. **Step 4: In-Browser Execution (20 seconds)**
+4. **Step 4: In-Browser Execution & 1-Click ZIP (25 seconds)**
    - Switch to `script.py` and click **"▶ Run Code"**.
    - Show the terminal open at the bottom and cleanly print Python outputs in 2 milliseconds.
+   - Click **"💾 Export ZIP"** in the header or sidebar:
+   - **Point to the screen**: *"Even while completely offline, any student can download their entire multi-file project as a zip archive directly from browser memory with zero backend dependencies."*
 
 ---
 
-## 🤝 11. How the Two of You Should Divide the Viva
+## 🤝 12. How the Two of You Should Divide the Viva
 
 Judges can pick either of you at random. Split the topics so both of you shine:
 
@@ -152,7 +168,8 @@ Judges can pick either of you at random. Split the topics so both of you shine:
   - Per-User Undo mechanics (`Y.UndoManager` + `trackedOrigins`).
   - Live Awareness, cursors, and user color badges.
   - In-browser Code Runner (JS sandbox & Python Pyodide).
-  - Offline-synced Team Chat UI & unread badge notifications.
+  - Offline-synced Team Chat UI & per-user clear scoping.
+  - Client-side ZIP export via `JSZip`.
 
 * **Partner 2 (Data, CRDT & Network Architecture)**:
   - CRDT vs. OT theory (mathematical convergence without central conflict server).
