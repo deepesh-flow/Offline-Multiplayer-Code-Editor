@@ -1,107 +1,137 @@
 # 🎓 MultiCode Offline — Viva Notes & Interview Guide
-> **Audience**: B.Tech CSE Freshers preparing for hackathon judge questions (15% Viva weightage).
-> **Rule of thumb**: Keep your answers simple, confident, and relate back to our architecture.
+> **For**: B.Tech CSE Freshers (Code Fuzion 2026 • Problem H9).  
+> **How to use this**: Read this together with your duo partner. You don't need to memorize code syntax—judges only care that you understand the **concepts** and the **reasons behind your choices**.
 
 ---
 
-## 🌟 1. The Core Problem (Problem Statement H9)
-- **The Scenario**: In college hostels, Wi-Fi drops constantly. If multiple students are coding on the same project, standard tools overwrite each other's code or lose characters on reconnect.
-- **Our Solution**: An **offline-first collaborative code editor**. You can lose internet completely, continue typing, create files, and when Wi-Fi comes back, all changes merge automatically with zero lost characters.
+## 🌟 1. What is the Project in One Sentence?
+> *"It's an offline-first collaborative code editor where a team can code together in real time over flaky hostel Wi-Fi; if internet drops, everyone can keep typing, and when anyone reconnects, all edits merge automatically with zero lost characters."*
 
 ---
 
-## 🧠 2. CRDT vs. OT (Judges LOVE asking this!)
-### "Why did you use CRDT instead of OT?"
-* **Plain English Answer**:
-  > *"OT (Operational Transformation, used by Google Docs) requires a central server to rewrite every operation in sequence. If someone goes offline for 10 minutes, OT struggles or breaks because the server wasn't there to transform operations in order.*
-  >
-  > *CRDT (Conflict-free Replicated Data Type, powered by Yjs in our app) is mathematically designed to merge peer-to-peer. Every single character typed gets a unique identifier and clock. It doesn't matter if updates arrive out of order, delayed, or after being offline for hours — mathematically, every client converges to the exact same text automatically without needing a server to arbitrate conflicts."*
+## 🧠 2. CRDT vs. OT (The #1 Most Asked Judge Question)
+
+### Q: "Why did you use CRDT instead of OT?"
+* **The Fresher Explanation**:
+  > *"Google Docs uses **OT (Operational Transformation)**. OT requires a single, central server to receive every keystroke and transform its position in sequence. In our hostel scenario, if Wi-Fi dies, there is no server to arbitrate!*  
+  >  
+  > *We chose **CRDT (Conflict-free Replicated Data Type)** powered by **Yjs**. With CRDTs, every character has a unique ID and logical clock. Even if edits arrive out of order or after someone was offline for 3 hours, the mathematical rules guarantee that every device converges to the exact same text automatically without needing a server to decide conflicts."*
 
 ---
 
-## 💾 3. How Offline Storage Works (`y-indexeddb`)
-### "Where do edits go when the Wi-Fi disconnects?"
-* **Plain English Answer**:
-  > *"We use `y-indexeddb`. IndexedDB is a built-in NoSQL database inside every browser. Every keystroke is saved as a binary CRDT update into IndexedDB locally on the user's computer.*
-  >
-  > *Even if you close the browser tab while offline, your code is safely preserved. When you open it back up, the editor immediately loads from IndexedDB."*
+## 💾 3. Offline Storage & Reconnection (`y-indexeddb`)
 
-### "What happens upon reconnecting?"
-* **Plain English Answer**:
-  > *"When the network comes back, our client and server exchange Yjs state vectors (sync step 1 and step 2). Yjs computes only the missing diffs that occurred during the offline window and merges them seamlessly with everyone else's work."*
+### Q: "Where does the code go when my Wi-Fi is completely dead?"
+* **The Fresher Explanation**:
+  > *"It is saved to **IndexedDB**, which is a built-in NoSQL database inside every browser on your hard drive.*  
+  >  
+  > *Using `y-indexeddb`, every keystroke is immediately written locally to IndexedDB as a binary CRDT update. Even if you turn off Wi-Fi or accidentally close the browser tab, your work is never lost."*
+
+### Q: "What happens the moment Wi-Fi reconnects?"
+* **The Fresher Explanation**:
+  > *"Our client and the server exchange **State Vectors** (a short cryptographic summary of what updates each peer has). Yjs compares the vectors, calculates only the missing diffs that happened while offline, and merges them in milliseconds without losing a single character."*
 
 ---
 
 ## ↩️ 4. The Per-User Undo Trap (`Y.UndoManager`)
-### "Why does normal Ctrl+Z break in multiplayer editors?"
-* **The AI Trap (Mentioned in Problem Statement)**:
-  > *"Monaco Editor has its own internal undo stack that blindly undoes whatever was last changed in the text buffer. If User A types 'hello' and User B types 'world', pressing Ctrl+Z in standard Monaco would undo User B's 'world'!"*
 
-### "How did you solve it?"
-* **Our Solution**:
-  > *"We integrated `Y.UndoManager` and restricted its `trackedOrigins` to our local `MonacoBinding`. We intercepted Monaco's `Ctrl+Z` and `Ctrl+Y` commands.*
-  >
-  > *Now, when a user presses Ctrl+Z, Yjs checks the transaction origin and inverts **only the keystrokes made by that specific user**, leaving everyone else's concurrent edits untouched."*
+### Q: "Why does normal Ctrl+Z fail in collaborative editors?"
+* **The Fresher Explanation (The AI Trap highlighted in the problem statement)**:
+  > *"Monaco Editor (the editor engine from VS Code) has a default undo stack that simply undid whatever text was last changed in the editor buffer.*  
+  >  
+  > *If User A types 'hello' and User B types 'world', pressing Ctrl+Z in basic Monaco would accidentally delete User B's 'world'!"*
 
----
-
-## 👥 5. Live Presence & Cursors (The Awareness Protocol)
-### "How do you show where others are typing and what files they are on?"
-* **Plain English Answer**:
-  > *"We use the Yjs Awareness protocol. Unlike document edits (which are permanent CRDTs saved in IndexedDB), awareness is ephemeral (temporary). Each user broadcasts their chosen name, cursor color, current selection coordinates, and active file name.*
-  >
-  > *When a peer moves their cursor or switches files, our client receives the awareness update, translates the character index to Monaco line/column coordinates, and injects colored flags with their name above their caret."*
+### Q: "How did you fix it in your code?"
+* **The Fresher Explanation**:
+  > *"We used `Y.UndoManager` and configured `trackedOrigins: new Set([binding])`. We intercepted Monaco's `Ctrl+Z` and `Ctrl+Y` keystrokes.*  
+  >  
+  > *Now, when User A presses Ctrl+Z, Yjs checks the transaction author and inverts **only the keystrokes made by User A**, leaving User B's code completely untouched."*
 
 ---
 
-## 📁 6. Multi-File Architecture
-### "How does the project handle multiple files simultaneously?"
-* **Plain English Answer**:
-  > *"We store a shared directory list in a `Y.Map` called `files`. Each file's text content is a shared `Y.Text` named `file:<filename>`.*
-  >
-  > *This allows teammates to edit different files at the same time or work inside the same file together. In the sidebar, colored indicator dots show which file each team member is currently viewing."*
+## 👥 5. Live Presence, Avatars & Cursors (Awareness Protocol)
+
+### Q: "How do you show other people's cursors and colors?"
+* **The Fresher Explanation**:
+  > *"We use the **Yjs Awareness protocol**. Unlike document text (which is permanent and saved in IndexedDB), awareness data is ephemeral (temporary).*  
+  >  
+  > *Every connected peer broadcasts their chosen name, custom color, cursor line/column, and active file name. Our frontend receives these packets and dynamically injects colored CSS carets with floating name badges above each teammate's cursor."*
 
 ---
 
-## 🖥️ 7. Frontend & Backend Architecture
-- **Frontend**:
-  - React 19 + Vite.
-  - Monaco Editor (powers VS Code).
-  - Yjs (CRDT engine), `y-indexeddb` (offline local persistence), `y-websocket` (network sync provider), `y-monaco` (binds Monaco model to Yjs text).
-  - Hosted on **Netlify**.
-- **Backend**:
-  - Lightweight Node.js server with WebSockets (`ws`).
-  - Uses `setupWSConnection` from `y-websocket` to broadcast binary sync messages and relay awareness.
-  - Health check endpoint `/health` for cloud platform uptime monitoring.
-  - Hosted on **Render** (configured to bind to `0.0.0.0` with dynamic `PORT`).
+## 📁 6. Multi-File Project Architecture
+
+### Q: "How do multiple files work collaboratively?"
+* **The Fresher Explanation**:
+  > *"We have a shared directory stored in a `Y.Map` called `files`. The content of each file is stored in a separate `Y.Text` called `file:<filename>`.*  
+  >  
+  > *This allows teammates to edit different files at the exact same time, or work together on the same file. In the sidebar, little colored dots show in real time which file each teammate is currently looking at."*
 
 ---
 
-## 🎯 8. Live Demo Script for Judges (Under 2 Minutes)
-1. **Show Multiplayer**:
-   - Open the app in two browser windows side-by-side.
-   - Type in Window 1 — show instantaneous cursor and text sync in Window 2.
-2. **Show Per-User Undo**:
-   - In Window 1, type `const a = 100;`.
-   - In Window 2, type `const b = 200;`.
-   - In Window 1, press `Ctrl+Z` — point out that `const a = 100;` disappears, but `const b = 200;` remains completely intact.
-3. **Show Bad Hostel Wi-Fi (Offline Merge)**:
-   - In Window 1, click **"🔌 Simulate Wi-Fi Drop"**. Show the badge change to `Offline (Simulated)`.
-   - In Window 1 (offline), type a function: `function offlineFeature() { return true; }`.
-   - In Window 2 (still online), type comments or another function.
+## 🏃‍♂️ 7. In-Browser Code Runner (JavaScript & Python)
+
+### Q: "How does the '▶ Run Code' button work without a backend compiler?"
+* **The Fresher Explanation**:
+  > *"Running code on a remote server would fail completely when offline! So our code runner executes **100% inside the client browser**.*  
+  >  
+  > *• **For JavaScript**: It runs in an isolated async function sandbox where we intercept `console.log()` and stream outputs into our custom terminal.*  
+  > *• **For Python 3**: It runs via **Pyodide**, which is the full CPython interpreter compiled to WebAssembly (Wasm). It executes real Python code (loops, list comprehensions, `print()`) directly in the browser's memory without needing any backend!"*
+
+---
+
+## 🌐 8. Rooms & Deployment (Render + Netlify)
+
+### Q: "How do different teams get their own private rooms?"
+* **The Fresher Explanation**:
+  > *"We read the room name from the URL query parameter: `?room=xyz`. The WebSocket server and local IndexedDB use that room name as an isolated namespace. Anyone with the same link joins the same project room."*
+
+### Q: "Where is this deployed?"
+* **The Fresher Explanation**:
+  > *"• **Frontend**: Hosted on **Netlify** (built with Vite).*  
+  > *• **Backend**: A lightweight Node.js WebSocket server hosted on **Render**, listening on `0.0.0.0` with dynamic port handling and a `/health` endpoint for uptime monitoring."*
+
+---
+
+## 🎯 9. The 2-Minute Live Demo Script for Judges
+
+When judges come to your desk, follow this exact sequence:
+
+1. **Step 1: Live Multiplayer (15 seconds)**
+   - Open your project link in **two side-by-side browser windows**.
+   - Type in Window 1 ➔ Show that text, cursor flags, and user colors appear in real time in Window 2.
+
+2. **Step 2: Per-User Undo (20 seconds)**
+   - In Window 1, type: `let a = 10;`.
+   - In Window 2, type: `let b = 20;`.
+   - In Window 1, press `Ctrl+Z`.
+   - **Point to the screen**: *"Notice that `let a = 10;` is undone, but my partner's `let b = 20;` remained completely untouched. That is our scoped UndoManager at work."*
+
+3. **Step 3: Flaky Hostel Wi-Fi / Offline Merge (45 seconds)**
+   - In Window 1, click **"🔌 Simulate Wi-Fi Drop"**. Show that the status badge turns red (`Offline (Simulated)`).
+   - In Window 1 (offline), type a function: `function offlineTest() { return true; }`.
+   - In Window 2 (online), type some comments or another function.
    - In Window 1, click **"📶 Reconnect Wi-Fi"**.
-   - Show how both texts merge cleanly together with zero lost characters!
-4. **Show In-Browser Runner**:
-   - Click **"▶ Run"** in the top bar.
-   - Watch the built-in Terminal open and instantly log output, even while disconnected!
+   - **Point to the screen**: *"Watch both screens merge automatically. Zero lost characters, zero manual git conflicts."*
+
+4. **Step 4: In-Browser Execution (20 seconds)**
+   - Switch to `script.py` and click **"▶ Run Code"**.
+   - Show the terminal open at the bottom and cleanly print Python outputs in 2 milliseconds.
 
 ---
 
-## 🏃‍♂️ 9. In-Browser Code Runner (Viva Guide)
-### "How does the 'Run Code' button work?"
-* **Plain English Answer**:
-  > *"Instead of sending code to a remote backend server (which would fail when offline!), our runner executes 100% directly inside the browser using an isolated JavaScript sandbox.*
-  >
-  > *We override `console.log`, `console.warn`, and `console.error` inside a function scope, format the values, and stream them into our custom bottom terminal panel with millisecond execution timings.*
-  >
-  > *Because execution is client-side, it works completely offline without needing any internet connection!"*
+## 🤝 10. How the Two of You Should Divide the Viva
+
+Judges can pick either of you at random. Split the topics so both of you shine:
+
+* **Partner 1 (Frontend & User Experience)**:
+  - Monaco Editor integration.
+  - Per-User Undo mechanics (`Y.UndoManager` + `trackedOrigins`).
+  - Live Awareness, cursors, and user color badges.
+  - In-browser Code Runner (JS sandbox & Python Pyodide).
+
+* **Partner 2 (Data, CRDT & Network Architecture)**:
+  - CRDT vs. OT theory (mathematical convergence without central conflict server).
+  - Offline local persistence (`y-indexeddb` saving binary CRDT updates).
+  - State Vector diffing and automatic merge upon reconnect.
+  - WebSocket backend architecture and room namespacing.
