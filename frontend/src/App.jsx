@@ -373,77 +373,115 @@ function App() {
     handleSwitchRoom(`room-${randomId}`);
   }
 
+  // Helper to format arguments nicely for terminal display
+  function formatArg(arg) {
+    if (arg === null) return 'null';
+    if (arg === undefined) return 'undefined';
+    if (typeof arg === 'string') return arg;
+    if (typeof arg === 'number' || typeof arg === 'boolean') return String(arg);
+    if (typeof arg === 'function') return arg.toString();
+    try {
+      return JSON.stringify(arg, null, 2);
+    } catch {
+      return String(arg);
+    }
+  }
+
   // In-Browser Code Runner
-  function handleRunCode() {
+  async function handleRunCode() {
     setShowConsole(true);
     setIsRunning(true);
 
-    const code = editorRef.current
-      ? editorRef.current.getValue()
-      : ydocRef.current?.getText(`file:${activeFile}`)?.toString() || '';
+    let code = '';
+    if (editorRef.current) {
+      code = editorRef.current.getValue();
+    } else if (ydocRef.current) {
+      code = ydocRef.current.getText(`file:${activeFile}`)?.toString() || '';
+    }
 
     const lang = getLanguageByFilename(activeFile);
-    const newLogs = [];
+    const runTimestamp = new Date().toLocaleTimeString();
 
-    const captureLog = (type, args) => {
-      const text = args
-        .map((arg) => {
-          if (arg === null) return 'null';
-          if (arg === undefined) return 'undefined';
-          if (typeof arg === 'object') {
-            try {
-              return JSON.stringify(arg, null, 2);
-            } catch {
-              return String(arg);
-            }
-          }
-          return String(arg);
-        })
-        .join(' ');
-      newLogs.push({ type, text, time: new Date().toLocaleTimeString() });
+    // Log start of execution immediately
+    setConsoleLogs((prev) => [
+      ...prev,
+      { type: 'system', text: `🚀 [${activeFile}] Starting execution...`, time: runTimestamp },
+    ]);
+
+    const capture = (type, text) => {
+      setConsoleLogs((prev) => [
+        ...prev,
+        { type, text, time: new Date().toLocaleTimeString() },
+      ]);
     };
 
     const startTime = performance.now();
+    let capturedAnyOutput = false;
 
     try {
       if (lang === 'javascript' || lang === 'typescript') {
         const customConsole = {
-          log: (...args) => captureLog('log', args),
-          info: (...args) => captureLog('info', args),
-          warn: (...args) => captureLog('warn', args),
-          error: (...args) => captureLog('error', args),
+          log: (...args) => {
+            capturedAnyOutput = true;
+            console.log(...args);
+            capture('log', args.map(formatArg).join(' '));
+          },
+          info: (...args) => {
+            capturedAnyOutput = true;
+            console.info(...args);
+            capture('info', args.map(formatArg).join(' '));
+          },
+          warn: (...args) => {
+            capturedAnyOutput = true;
+            console.warn(...args);
+            capture('warn', args.map(formatArg).join(' '));
+          },
+          error: (...args) => {
+            capturedAnyOutput = true;
+            console.error(...args);
+            capture('error', args.map(formatArg).join(' '));
+          },
         };
 
-        // Execute in isolated function scope with captured console
-        const executeScript = new Function('console', code);
-        const result = executeScript(customConsole);
+        const customPrint = (...args) => {
+          capturedAnyOutput = true;
+          capture('log', args.map(formatArg).join(' '));
+        };
+
+        // AsyncFunction allows both sync code and async/await!
+        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+        const executeScript = new AsyncFunction('console', 'print', code);
+        const result = await executeScript(customConsole, customPrint);
 
         if (result !== undefined) {
-          captureLog('return', [`Return value: ${typeof result === 'object' ? JSON.stringify(result) : result}`]);
+          capturedAnyOutput = true;
+          capture('return', `↳ ${formatArg(result)}`);
+        }
+
+        if (!capturedAnyOutput) {
+          capture(
+            'info',
+            'ℹ️ (Code executed successfully with no console.log output. Try: console.log("Hello World"))'
+          );
         }
       } else if (lang === 'html') {
-        captureLog('info', ['Opening HTML preview in a new browser window...']);
+        capture('info', '🌐 Opening HTML preview in a new window...');
         const blob = new Blob([code], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
       } else {
-        captureLog('info', [
-          `[${activeFile}] In-browser execution currently runs JavaScript & HTML. Syntax highlighting is active for ${lang.toUpperCase()}.`,
-        ]);
+        capture(
+          'info',
+          `📄 [${activeFile}] In-browser execution is optimized for JavaScript (.js/.jsx) & HTML (.html). For ${lang.toUpperCase()}, syntax highlighting is active.`
+        );
       }
     } catch (err) {
-      captureLog('error', [err.stack || err.message || String(err)]);
+      capture('error', `❌ ${err.name || 'Error'}: ${err.message || String(err)}`);
+    } finally {
+      const elapsed = Math.round(performance.now() - startTime);
+      capture('system', `⚡ Finished in ${elapsed}ms`);
+      setIsRunning(false);
     }
-
-    const elapsed = Math.round(performance.now() - startTime);
-    newLogs.push({
-      type: 'system',
-      text: `⚡ Execution finished in ${elapsed}ms`,
-      time: new Date().toLocaleTimeString(),
-    });
-
-    setConsoleLogs((prev) => [...prev, ...newLogs]);
-    setIsRunning(false);
   }
 
   // Peers active on specific file
@@ -647,6 +685,29 @@ function App() {
               <span className="editor-tab-lang">
                 {getLanguageByFilename(activeFile)}
               </span>
+            </div>
+
+            {/* Tab Bar Run & Terminal actions */}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                className="btn-run"
+                onClick={handleRunCode}
+                disabled={isRunning}
+                title="Execute active code in browser terminal"
+              >
+                {isRunning ? '⏳ Running...' : '▶ Run Code'}
+              </button>
+              <button
+                className="icon-btn"
+                onClick={() => setShowConsole((prev) => !prev)}
+                title="Toggle Output Terminal"
+                style={{
+                  background: showConsole ? '#3b82f633' : undefined,
+                  color: showConsole ? '#60a5fa' : undefined,
+                }}
+              >
+                💻 Terminal {showConsole ? '▼' : '▲'}
+              </button>
             </div>
           </div>
 

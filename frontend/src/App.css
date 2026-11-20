@@ -252,6 +252,7 @@ body {
 .ide-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   position: relative;
 }
@@ -398,10 +399,12 @@ body {
 /* Editor Workspace Area */
 .ide-workspace {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: #1e1e1e;
   overflow: hidden;
+  position: relative;
 }
 
 /* Tab Bar */
@@ -436,6 +439,7 @@ body {
 
 .monaco-wrapper {
   flex: 1;
+  min-height: 0;
   width: 100%;
   position: relative;
 }
@@ -469,14 +473,16 @@ body {
 
 /* Terminal / Console Panel */
 .ide-terminal {
-  height: 200px;
-  min-height: 120px;
+  height: 220px;
+  min-height: 140px;
   max-height: 50vh;
+  flex-shrink: 0;
   background: #121214;
   border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   user-select: text;
+  z-index: 20;
 }
 
 .terminal-header {
