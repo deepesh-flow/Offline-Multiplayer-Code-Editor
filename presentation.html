@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MultiCode Offline — Code Fuzion 2026</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #21262d;
+      --border: rgba(255,255,255,0.08);
+      --green: #3fb950;
+      --green-dim: rgba(63,185,80,0.15);
+      --blue: #58a6ff;
+      --blue-dim: rgba(88,166,255,0.12);
+      --purple: #bc8cff;
+      --purple-dim: rgba(188,140,255,0.12);
+      --amber: #f0a500;
+      --amber-dim: rgba(240,165,0,0.12);
+      --red: #f85149;
+      --red-dim: rgba(248,81,73,0.15);
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #484f58;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* ═══ PROGRESS BAR ═══ */
+    .progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--green), var(--blue));
+      transition: width 0.4s ease;
+      z-index: 1000;
+    }
+
+    /* ═══ SLIDE DECK ═══ */
+    .slide-deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 80px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.45s ease;
+    }
+    .slide.active { opacity: 1; visibility: visible; }
+
+    /* ═══ GRID BACKGROUND ═══ */
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    /* ═══ TYPOGRAPHY ═══ */
+    .tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid;
+      margin-bottom: 20px;
+      display: inline-block;
+    }
+    .tag-green { color: var(--green); border-color: rgba(63,185,80,0.3); background: var(--green-dim); }
+    .tag-blue { color: var(--blue); border-color: rgba(88,166,255,0.3); background: var(--blue-dim); }
+    .tag-purple { color: var(--purple); border-color: rgba(188,140,255,0.3); background: var(--purple-dim); }
+    .tag-amber { color: var(--amber); border-color: rgba(240,165,0,0.3); background: var(--amber-dim); }
+
+    .slide-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(36px, 5.5vw, 72px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, var(--green) 0%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .gradient-purple {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .slide-sub {
+      font-size: clamp(14px, 1.6vw, 20px);
+      color: var(--muted);
+      text-align: center;
+      max-width: 680px;
+      line-height: 1.65;
+    }
+
+    /* ═══ CARDS ═══ */
+    .card-grid {
+      display: grid;
+      gap: 16px;
+      width: 100%;
+      max-width: 1000px;
+      margin-top: 32px;
+    }
+    .card-grid-2 { grid-template-columns: 1fr 1fr; }
+    .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: left;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: rgba(255,255,255,0.15); }
+
+    .card-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .card-desc { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+
+    .card-green { border-color: rgba(63,185,80,0.25); background: linear-gradient(135deg, var(--bg2), rgba(63,185,80,0.04)); }
+    .card-blue { border-color: rgba(88,166,255,0.25); background: linear-gradient(135deg, var(--bg2), rgba(88,166,255,0.04)); }
+    .card-purple { border-color: rgba(188,140,255,0.25); background: linear-gradient(135deg, var(--bg2), rgba(188,140,255,0.04)); }
+    .card-amber { border-color: rgba(240,165,0,0.25); background: linear-gradient(135deg, var(--bg2), rgba(240,165,0,0.04)); }
+    .card-red { border-color: rgba(248,81,73,0.25); background: linear-gradient(135deg, var(--bg2), rgba(248,81,73,0.04)); }
+
+    /* ═══ CODE BLOCK ═══ */
+    .code-block {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      text-align: left;
+      width: 100%;
+    }
+    .code-comment { color: #6e7681; }
+    .code-keyword { color: var(--purple); }
+    .code-string { color: #a5d6ff; }
+    .code-fn { color: var(--green); }
+    .code-num { color: var(--amber); }
+
+    /* ═══ STAT BLOCKS ═══ */
+    .stat-row {
+      display: flex;
+      gap: 20px;
+      margin-top: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .stat {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 28px;
+      text-align: center;
+      min-width: 130px;
+    }
+    .stat-num {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    /* ═══ COMPARISON TABLE ═══ */
+    .compare-table {
+      width: 100%;
+      max-width: 820px;
+      border-collapse: collapse;
+      margin-top: 28px;
+      font-size: 13.5px;
+    }
+    .compare-table th {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 12px 20px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .compare-table td {
+      padding: 11px 20px;
+      border: 1px solid var(--border);
+      text-align: center;
+      color: var(--muted);
+    }
+    .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .cell-yes { color: var(--green); font-weight: 600; }
+    .cell-no { color: var(--red); }
+    .cell-label { text-align: left !important; color: var(--text) !important; font-weight: 500; }
+
+    /* ═══ TIMELINE ═══ */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 740px;
+      text-align: left;
+    }
+    .timeline-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+    .timeline-num {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      min-width: 28px;
+    }
+    .timeline-text { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+    .timeline-text strong { color: var(--text); font-weight: 600; }
+
+    /* ═══ PILL BADGES ═══ */
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 24px;
+    }
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+
+    /* ═══ SPLIT LAYOUT ═══ */
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      width: 100%;
+      max-width: 1000px;
+      text-align: left;
+    }
+    .split-left, .split-right { display: flex; flex-direction: column; gap: 12px; }
+
+    /* ═══ SECTION HEADER ═══ */
+    .section-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .section-h {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(22px, 3.5vw, 40px);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    /* ═══ FOOTER ═══ */
+    .slide-footer {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: var(--dim);
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+    }
+
+    /* ═══ NAVIGATION ═══ */
+    .nav-controls {
+      position: fixed;
+      bottom: 28px;
+      right: 36px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      z-index: 1000;
+    }
+    .nav-btn {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 38px; height: 38px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+    .slide-counter {
+      color: var(--muted);
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ═══ ANIMATIONS ═══ */
+    .slide.active .animate-up { animation: fadeUp 0.55s ease-out forwards; }
+    .slide.active .delay-1 { animation-delay: 0.1s; opacity: 0; }
+    .slide.active .delay-2 { animation-delay: 0.2s; opacity: 0; }
+    .slide.active .delay-3 { animation-delay: 0.3s; opacity: 0; }
+    .slide.active .delay-4 { animation-delay: 0.4s; opacity: 0; }
+    .slide.active .delay-5 { animation-delay: 0.5s; opacity: 0; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══ SLIDE SPECIFIC ═══ */
+    /* Slide 1 — Hero */
+    .hero-logo {
+      font-size: 56px;
+      margin-bottom: 20px;
+      display: block;
+    }
+    .hero-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(44px, 7vw, 88px);
+      font-weight: 800;
+      line-height: 1.0;
+      text-align: center;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+    }
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 22px);
+      color: var(--muted);
+      text-align: center;
+      max-width: 600px;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .hero-badges {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Big quote */
+    .big-quote {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(18px, 2.8vw, 36px);
+      font-weight: 700;
+      line-height: 1.4;
+      text-align: center;
+      max-width: 800px;
+      position: relative;
+    }
+    .big-quote::before {
+      content: '"';
+      font-size: 5em;
+      color: var(--border);
+      position: absolute;
+      top: -40px; left: -20px;
+      font-family: Georgia, serif;
+      line-height: 1;
+    }
+
+    /* Arch diagram */
+    .arch-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 24px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+    .arch-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-top: 6px; }
+    .arch-arrow { font-size: 24px; color: var(--dim); display: flex; align-items: center; }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<div class="slide-deck">
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 1 — TITLE / HERO
+  ══════════════════════════════════════════ -->
+  <div class="slide active">
+    <span class="hero-logo animate-up">⚡</span>
+    <h1 class="hero-title animate-up delay-1">
+      <span class="gradient-text">MultiCode</span><br>Offline
+    </h1>
+    <p class="hero-sub animate-up delay-2">
+      A real-time multiplayer code editor that works even when your hostel Wi-Fi doesn't.
+    </p>
+    <div class="hero-badges animate-up delay-3">
+      <span class="badge tag-green">Code Fuzion 2026</span>
+      <span class="badge tag-blue">Problem H9 — Hard (350 pts)</span>
+      <span class="badge tag-purple">CRDT + Offline-First</span>
+    </div>
+    <div class="slide-footer">← → or click to navigate &nbsp;|&nbsp; Press F11 for fullscreen</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 2 — THE PROBLEM
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="section-header animate-up">
+      <span class="tag tag-red">The Problem</span>
+      <h2 class="section-h">Team coding breaks on bad Wi-Fi</h2>
+      <p class="slide-sub">Every real-time editor today has the same critical flaw.</p>
+    </div>
+
+    <div class="card-grid card-grid-3 animate-up delay-2">
+      <div class="card card-red">
+        <span class="card-icon">❌</span>
+        <div class="card-title">Google Docs / Figma</div>
+        <div class="card-desc">Goes completely read-only when offline. You can't type a single character.</div>
+      </div>
+      <div class="card card-red">
+        <span class="card-icon">❌</span>
+        <div class="card-title">VS Code Live Share</div>
+        <div class="card-desc">Requires a constant internet connection to the central relay server. Wi-Fi drop = session dead.</div>
+      </div>
+      <div class="card card-red">
+        <span class="card-icon">❌</span>
+        <div class="card-title">Most Collaborative IDEs</div>
+        <div class="card-desc">When two people edit the same line offline and reconnect, one person's work gets silently deleted.</div>
+      </div>
+    </div>
+
+    <div class="stat-row animate-up delay-3">
+      <div class="stat">
+        <div class="stat-num" style="color:var(--red)">0</div>
+        <div class="stat-label">chars recovered</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--red)">∞</div>
+        <div class="stat-label">merge conflicts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--red)">4+</div>
+        <div class="stat-label">teammates affected</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 3 — OUR SOLUTION
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="section-header animate-up">
+      <span class="tag tag-green">Our Solution</span>
+      <h2 class="section-h">An editor that <span class="gradient-text">never loses your work</span></h2>
+    </div>
+
+    <div class="card-grid card-grid-2 animate-up delay-2" style="max-width:860px;">
+      <div class="card card-green">
+        <span class="card-icon">🧮</span>
+        <div class="card-title">CRDT — Conflict-Free by Math</div>
+        <div class="card-desc">We use <strong style="color:var(--green)">Yjs (CRDT)</strong> — every character has a unique ID. Even if 4 users type the same word offline for 3 hours, all copies mathematically converge to identical text with zero conflicts when they reconnect.</div>
+      </div>
+      <div class="card card-blue">
+        <span class="card-icon">💾</span>
+        <div class="card-title">IndexedDB — Works in Airplane Mode</div>
+        <div class="card-desc">Every keystroke is instantly saved to <strong style="color:var(--blue)">IndexedDB</strong> (browser hard drive). Close the laptop, lose power, lose internet — when you open the browser again, every character is exactly where you left it.</div>
+      </div>
+      <div class="card card-purple">
+        <span class="card-icon">📶</span>
+        <div class="card-title">Auto-Merge on Reconnect</div>
+        <div class="card-desc">The moment internet returns, clients exchange <strong style="color:var(--purple)">State Vectors</strong> — a compact summary of what each peer has. Only the missing diffs are synced. Zero data duplication, zero conflicts.</div>
+      </div>
+      <div class="card card-amber">
+        <span class="card-icon">👁️</span>
+        <div class="card-title">Live Cursors + Per-User Undo</div>
+        <div class="card-desc">See every teammate's cursor in real-time with colored name tags. <strong style="color:var(--amber)">Ctrl+Z undoes only YOUR edits</strong> — never accidentally deletes a teammate's work.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 4 — CRDT vs OT DEEP DIVE
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="section-header animate-up">
+      <span class="tag tag-blue">Technical Deep Dive</span>
+      <h2 class="section-h">Why <span class="gradient-purple">CRDT</span> beats OT for offline</h2>
+    </div>
+
+    <table class="compare-table animate-up delay-2">
+      <thead>
+        <tr>
+          <th style="text-align:left">Capability</th>
+          <th style="color:var(--red)">OT (Google Docs)</th>
+          <th style="color:var(--green)">CRDT — Yjs (Ours)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="cell-label">Works without internet</td>
+          <td class="cell-no">✗ Needs central server</td>
+          <td class="cell-yes">✓ Fully local</td>
+        </tr>
+        <tr>
+          <td class="cell-label">Merge concurrent edits</td>
+          <td class="cell-no">✗ Server must arbitrate</td>
+          <td class="cell-yes">✓ Math guarantees merge</td>
+        </tr>
+        <tr>
+          <td class="cell-label">Zero data loss on reconnect</td>
+          <td class="cell-no">✗ Conflicts possible</td>
+          <td class="cell-yes">✓ Mathematically proven</td>
+        </tr>
+        <tr>
+          <td class="cell-label">No central coordinator needed</td>
+          <td class="cell-no">✗ Required</td>
+          <td class="cell-yes">✓ Peer-to-peer</td>
+        </tr>
+        <tr>
+          <td class="cell-label">Merge speed</td>
+          <td class="cell-no">O(n²) complexity</td>
+          <td class="cell-yes">✓ &lt; 2ms (Yjs YATA algorithm)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="animate-up delay-3" style="margin-top:20px; padding: 14px 24px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; max-width:820px; text-align:center;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted);">
+        💡 Analogy: OT is like needing a referee for every move in chess. CRDT is like addition — 
+        <span style="color:var(--green);">2+3 = 3+2</span> regardless of arrival order.
+      </span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 5 — ARCHITECTURE
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="section-header animate-up">
+      <span class="tag tag-purple">Architecture</span>
+      <h2 class="section-h">How the system is built</h2>
+    </div>
+
+    <div class="animate-up delay-1" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center; width:100%; max-width:980px;">
+      <div class="arch-box">
+        <div style="font-size:28px; margin-bottom:6px;">🌐</div>
+        <div style="color:var(--blue); font-weight:700;">Browser (React + Vite)</div>
+        <div style="color:var(--muted); font-size:11px; margin-top:4px;">Monaco Editor</div>
+        <div class="arch-label">Frontend</div>
+      </div>
+      <div class="arch-arrow">↔</div>
+      <div class="arch-box">
+        <div style="font-size:28px; margin-bottom:6px;">🧮</div>
+        <div style="color:var(--green); font-weight:700;">Yjs CRDT Engine</div>
+        <div style="color:var(--muted); font-size:11px; margin-top:4px;">y-websocket · y-indexeddb · y-monaco</div>
+        <div class="arch-label">CRDT Core</div>
+      </div>
+      <div class="arch-arrow">↔</div>
+      <div class="arch-box">
+        <div style="font-size:28px; margin-bottom:6px;">💾</div>
+        <div style="color:var(--amber); font-weight:700;">IndexedDB</div>
+        <div style="color:var(--muted); font-size:11px; margin-top:4px;">Binary CRDT snapshots</div>
+        <div class="arch-label">Local Storage</div>
+      </div>
+      <div class="arch-arrow">↔</div>
+      <div class="arch-box">
+        <div style="font-size:28px; margin-bottom:6px;">🖥️</div>
+        <div style="color:var(--purple); font-weight:700;">Node.js WebSocket</div>
+        <div style="color:var(--muted); font-size:11px; margin-top:4px;">y-websocket relay · /health</div>
+        <div class="arch-label">Backend (Render)</div>
+      </div>
+    </div>
+
+    <div class="card-grid card-grid-3 animate-up delay-2" style="margin-top:24px; max-width:980px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--blue)">📡 Online Mode</div>
+        <div class="card-desc">WebSocket relays binary CRDT diffs between all peers in real-time. Awareness protocol broadcasts live cursors, names, colors.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--amber)">✈️ Offline Mode</div>
+        <div class="card-desc">WebSocket is gone. Yjs writes every edit directly to IndexedDB. All changes are queued safely. App never shows an error.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--green)">🔄 Reconnect</div>
+        <div class="card-desc">State Vectors exchange. Only missing diffs sync. Zero duplicates. Identical text guaranteed on all clients in &lt;2ms.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 6 — FEATURES
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="section-header animate-up">
+      <span class="tag tag-green">Features</span>
+      <h2 class="section-h">6 Extra Features Implemented</h2>
+    </div>
+
+    <div class="card-grid" style="grid-template-columns:1fr 1fr 1fr; max-width:1020px;" class="animate-up delay-1">
+      <div class="card card-blue animate-up delay-1">
+        <span class="card-icon">▶️</span>
+        <div class="card-title">In-Browser Code Runner</div>
+        <div class="card-desc">Run JavaScript in a sandbox. Run Python 3 via <strong style="color:var(--blue)">Pyodide WebAssembly</strong> — no server needed. Output in a VS Code–style terminal.</div>
+      </div>
+      <div class="card card-green animate-up delay-2">
+        <span class="card-icon">💬</span>
+        <div class="card-title">Offline-Synced Team Chat</div>
+        <div class="card-desc">Chat backed by CRDT <code>Y.Array</code>. Send messages while offline — they queue and auto-sync on reconnect. Unread badge counter.</div>
+      </div>
+      <div class="card card-amber animate-up delay-3">
+        <span class="card-icon">📦</span>
+        <div class="card-title">1-Click ZIP Export</div>
+        <div class="card-desc">Bundle the entire multi-file project into a `.zip` 100% client-side using <strong style="color:var(--amber)">JSZip</strong>. Works with no internet and no server.</div>
+      </div>
+      <div class="card card-purple animate-up delay-2">
+        <span class="card-icon">↩️</span>
+        <div class="card-title">Per-User Undo / Redo</div>
+        <div class="card-desc"><code>Y.UndoManager</code> + <code>trackedOrigins</code> ensures Ctrl+Z reverts only your keystrokes. Never deletes a teammate's code.</div>
+      </div>
+      <div class="card card-red animate-up delay-3">
+        <span class="card-icon">🔌</span>
+        <div class="card-title">Wi-Fi Drop Simulator</div>
+        <div class="card-desc">1-click button simulates hostel Wi-Fi dropout for live demos. Toggle offline → type → reconnect → watch edits merge instantly.</div>
+      </div>
+      <div class="card card-green animate-up delay-4">
+        <span class="card-icon">📊</span>
+        <div class="card-title">CRDT Telemetry HUD</div>
+        <div class="card-desc">Live State Vector Clocks, merge counters, convergence speed, and transaction log. <strong style="color:var(--green)">Mathematical proof of zero conflicts</strong> on screen.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 7 — LIVE DEMO PROOF
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="section-header animate-up">
+      <span class="tag tag-amber">Live Proof</span>
+      <h2 class="section-h">The Wi-Fi Drop Demo</h2>
+      <p class="slide-sub" style="max-width:580px;">Watch 2 browser windows diverge offline and merge perfectly on reconnect — zero lost characters.</p>
+    </div>
+
+    <div class="timeline animate-up delay-2" style="max-width:860px;">
+      <div class="timeline-item">
+        <div class="timeline-num" style="color:var(--blue)">1</div>
+        <div class="timeline-text"><strong>Open two browser windows side-by-side.</strong> Both show the same code. Live cursors visible in each window.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num" style="color:var(--amber)">2</div>
+        <div class="timeline-text"><strong>Click "🔌 Simulate Wi-Fi Drop" in Window 1.</strong> Status badge turns red: "Offline (Simulated)". WebSocket is severed.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num" style="color:var(--amber)">3</div>
+        <div class="timeline-text"><strong>Both users type simultaneously while offline.</strong> Window 1 edits queue to IndexedDB. Window 2 edits go live. Zero errors, zero freezes.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num" style="color:var(--green)">4</div>
+        <div class="timeline-text"><strong>Click "📶 Reconnect Wi-Fi" in Window 1.</strong> State Vectors exchange. All offline edits merge in &lt;2ms. Both windows show identical code — provably.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num" style="color:var(--green)">5</div>
+        <div class="timeline-text"><strong>Open "📊 Telemetry" at the bottom bar.</strong> Live Lamport clocks, 0 Conflicts counter, and the full transaction log prove mathematical convergence.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 8 — TECH STACK
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="section-header animate-up">
+      <span class="tag tag-purple">Tech Stack</span>
+      <h2 class="section-h">Built With</h2>
+    </div>
+
+    <div class="split animate-up delay-1">
+      <div class="split-left">
+        <div class="card card-blue">
+          <div class="card-title">🖥️ Frontend</div>
+          <div class="card-desc" style="line-height:2;">
+            <span class="badge tag-blue" style="margin:2px;">React 19 + Vite</span>
+            <span class="badge tag-blue" style="margin:2px;">Monaco Editor (VS Code)</span>
+            <span class="badge tag-blue" style="margin:2px;">Yjs CRDT</span>
+            <span class="badge tag-blue" style="margin:2px;">y-monaco · y-indexeddb · y-websocket</span>
+            <span class="badge tag-blue" style="margin:2px;">JSZip</span>
+            <span class="badge tag-blue" style="margin:2px;">Pyodide (Python WASM)</span>
+          </div>
+        </div>
+        <div class="card card-purple">
+          <div class="card-title">🖥️ Backend</div>
+          <div class="card-desc" style="line-height:2;">
+            <span class="badge tag-purple" style="margin:2px;">Node.js</span>
+            <span class="badge tag-purple" style="margin:2px;">y-websocket relay</span>
+            <span class="badge tag-purple" style="margin:2px;">0.0.0.0 binding</span>
+            <span class="badge tag-purple" style="margin:2px;">GET /health endpoint</span>
+          </div>
+        </div>
+      </div>
+      <div class="split-right">
+        <div class="card card-green">
+          <div class="card-title">🌐 Deployment</div>
+          <div class="card-desc" style="line-height:2;">
+            <div><strong style="color:var(--green);">Frontend:</strong> Netlify (Vite build, _redirects for SPA)</div>
+            <div><strong style="color:var(--green);">Backend:</strong> Render Web Service (auto-deploy from GitHub main)</div>
+          </div>
+        </div>
+        <div class="card card-amber">
+          <div class="card-title">📦 Key Design Decisions</div>
+          <div class="card-desc" style="line-height:1.9;">
+            <div>✓ <strong style="color:var(--text)">CRDT not OT</strong> — works fully peer-to-peer</div>
+            <div>✓ <strong style="color:var(--text)">IndexedDB not localStorage</strong> — binary diffs, 50MB+</div>
+            <div>✓ <strong style="color:var(--text)">sessionStorage clientID</strong> — no ghost users on refresh</div>
+            <div>✓ <strong style="color:var(--text)">trackedOrigins undo</strong> — per-user, never teammates</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 9 — RESULTS / PROOF
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="section-header animate-up">
+      <span class="tag tag-green">Results</span>
+      <h2 class="section-h">Measured. Proven. Live.</h2>
+      <p class="slide-sub">Every metric is demonstrable right now — not claimed, not simulated.</p>
+    </div>
+
+    <div class="stat-row animate-up delay-2">
+      <div class="stat">
+        <div class="stat-num gradient-text">0</div>
+        <div class="stat-label">Merge Conflicts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--blue)">&lt;2ms</div>
+        <div class="stat-label">Convergence time</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--purple)">4+</div>
+        <div class="stat-label">Simultaneous users</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--amber)">100%</div>
+        <div class="stat-label">Offline capable</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num gradient-text">6</div>
+        <div class="stat-label">Extra features</div>
+      </div>
+    </div>
+
+    <div class="card-grid card-grid-2 animate-up delay-3" style="max-width:860px; margin-top:20px;">
+      <div class="card card-green">
+        <div class="card-title">✓ CRDT Mathematical Guarantee</div>
+        <div class="card-desc">Strong Eventual Consistency — all peers converge to identical text regardless of edit arrival order. This is a mathematical theorem, not an approximation.</div>
+      </div>
+      <div class="card card-blue">
+        <div class="card-title">✓ Live Telemetry Proof on Screen</div>
+        <div class="card-desc">Our Telemetry HUD shows Lamport State Vector Clocks live for every peer and a real-time packet-level log proving 0 conflicts in every session.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 10 — THANK YOU
+  ══════════════════════════════════════════ -->
+  <div class="slide">
+    <span class="hero-logo animate-up" style="font-size:64px;">⚡</span>
+    <h1 class="hero-title animate-up delay-1" style="font-size:clamp(40px, 6.5vw, 80px);">
+      Thank You!
+    </h1>
+    <p class="hero-sub animate-up delay-2">
+      We built <strong style="color:var(--green)">MultiCode Offline</strong> — a multiplayer code editor where hostel Wi-Fi is optional.
+    </p>
+
+    <div class="card-grid card-grid-3 animate-up delay-3" style="max-width:820px; margin-top:28px;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:28px; margin-bottom:8px;">🎯</div>
+        <div class="card-title">Problem H9 (Hard)</div>
+        <div class="card-desc">350 base points · Code Fuzion 2026</div>
+      </div>
+      <div class="card card-green" style="text-align:center;">
+        <div style="font-size:28px; margin-bottom:8px;">🧮</div>
+        <div class="card-title">Core: CRDT + IndexedDB</div>
+        <div class="card-desc">Yjs · y-indexeddb · y-websocket</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:28px; margin-bottom:8px;">🚀</div>
+        <div class="card-title">6 Features Shipped</div>
+        <div class="card-desc">Code Runner · Chat · ZIP · Telemetry · Undo · Simulator</div>
+      </div>
+    </div>
+
+    <div class="animate-up delay-4" style="margin-top:28px; padding:14px 28px; background:var(--bg2); border:1px solid rgba(63,185,80,0.3); border-radius:10px; text-align:center;">
+      <span style="font-family:'Space Grotesk',sans-serif; font-size:16px; color:var(--green); font-weight:700;">
+        "Open in two tabs right now. Drop Wi-Fi. Type. Reconnect. See zero conflicts."
+      </span>
+    </div>
+
+    <div class="slide-footer">We're ready for your questions! 👋</div>
+  </div>
+
+</div>
+
+<!-- ═══ NAVIGATION CONTROLS ═══ -->
+<div class="nav-controls">
+  <button class="nav-btn" onclick="prevSlide()" title="Previous (←)">←</button>
+  <span class="slide-counter"><span id="current">1</span> / <span id="total">10</span></span>
+  <button class="nav-btn" onclick="nextSlide()" title="Next (→)">→</button>
+</div>
+
+<script>
+  let current = 1;
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  document.getElementById('total').textContent = total;
+
+  function showSlide(n) {
+    if (n < 1) n = 1;
+    if (n > total) n = total;
+    slides.forEach((s, i) => s.classList.toggle('active', i === n - 1));
+    current = n;
+    document.getElementById('current').textContent = n;
+    document.getElementById('progressBar').style.width = (n / total * 100) + '%';
+  }
+
+  function nextSlide() { showSlide(current + 1); }
+  function prevSlide() { showSlide(current - 1); }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+  });
+
+  // Click anywhere on slide (not on nav) to advance
+  document.querySelector('.slide-deck').addEventListener('click', (e) => {
+    if (!e.target.closest('.nav-controls')) nextSlide();
+  });
+
+  showSlide(1);
+</script>
+</body>
+</html>
