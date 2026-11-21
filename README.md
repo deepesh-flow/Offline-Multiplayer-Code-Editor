@@ -76,4 +76,4 @@ Open `http://localhost:5173` in your browser. Open multiple tabs or incognito wi
 ---
 
 ## 📖 Viva & Interview Reference
-Check [NOTES.md](NOTES.md) for plain-English explanations of CRDTs, OT vs CRDT, Vector Clocks, and per-user undo mechanics.
+Check [VIVA_SHEET.md](VIVA_SHEET.md) for plain-English explanations of CRDTs, OT vs CRDT, Vector Clocks, and per-user undo mechanics.
