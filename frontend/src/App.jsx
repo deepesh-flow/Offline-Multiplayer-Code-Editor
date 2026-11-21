@@ -20,6 +20,84 @@ const DEFAULT_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:1234';
 
 // Sample default files to populate on fresh project start
 const DEFAULT_FILES = {
+  'index.html': `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Web Preview</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 90vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #1e293b;
+      padding: 32px 36px;
+      border-radius: 14px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.45);
+      text-align: center;
+      border: 1px solid #334155;
+      max-width: 420px;
+    }
+    h1 {
+      color: #38bdf8;
+      margin: 0 0 10px;
+      font-size: 24px;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0 0 20px;
+    }
+    .btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #2563eb;
+    }
+    .counter {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🌐 Live Web Preview</h1>
+    <p>Edit this HTML file collaboratively in Monaco to see changes render in real time!</p>
+    <button class="btn" onclick="handleClick()">Click Me 🚀</button>
+    <div id="clicks" class="counter">Button clicks: 0</div>
+  </div>
+
+  <script>
+    let count = 0;
+    function handleClick() {
+      count++;
+      document.getElementById('clicks').innerText = 'Button clicks: ' + count;
+    }
+  </script>
+</body>
+</html>
+`,
   'main.js': `// ⚡ Collaborative JavaScript Runner
 function greet(name) {
   return "Hello, " + name + "!";
@@ -33,7 +111,7 @@ def greet(name):
 
 print(greet("Code Fuzion Team"))
 `,
-  'README.md': `# MultiCode Offline (H9 Problem Statement)
+  'README.md': `# MultiCode Offline
 
 ### Features:
 1. **CRDT-based Sync (Yjs)**: Conflict-free real-time typing across 4+ users.
@@ -53,7 +131,7 @@ function App() {
 
   const [currentUser, setCurrentUser] = useState(() => getStoredUser());
   const [fileList, setFileList] = useState([]);
-  const [activeFile, setActiveFile] = useState('main.js');
+  const [activeFile, setActiveFile] = useState('index.html');
   const [wsStatus, setWsStatus] = useState('connecting'); // 'connecting' | 'connected' | 'disconnected'
   const [isIndexedDBSynced, setIsIndexedDBSynced] = useState(false);
   const [isSimulatedOffline, setIsSimulatedOffline] = useState(false);
@@ -71,6 +149,14 @@ function App() {
   const [showConsole, setShowConsole] = useState(false);
   const [consoleLogs, setConsoleLogs] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
+
+  // Live Web Preview (HTML/CSS/JS)
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState('');
+  const [previewTarget, setPreviewTarget] = useState('index.html');
+  const [previewKey, setPreviewKey] = useState(0);
+  const showPreviewRef = useRef(false);
+  const previewDebounceRef = useRef(null);
 
   // Offline-Synced Team Chat (Feature 2)
   const [chatMessages, setChatMessages] = useState([]);
@@ -385,6 +471,13 @@ function App() {
         vectorClocks: vectorClocks.length > 0 ? vectorClocks : prev.vectorClocks,
         recentLogs: [logItem, ...prev.recentLogs].slice(0, 50),
       }));
+
+      if (showPreviewRef.current) {
+        clearTimeout(previewDebounceRef.current);
+        previewDebounceRef.current = setTimeout(() => {
+          updateLivePreview();
+        }, 300);
+      }
     };
 
     ydoc.on('update', handleDocUpdate);
@@ -457,6 +550,87 @@ function App() {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [visibleChatMessages, showChat]);
+
+  // Live Web Preview Generator for HTML/CSS/JS
+  const updateLivePreview = useCallback(() => {
+    if (!ydocRef.current) return;
+    const filesMap = ydocRef.current.getMap('files');
+    const allFiles = Array.from(filesMap.keys());
+
+    let targetHtmlFile = null;
+    const currentActive = activeFileRef.current || '';
+    if (currentActive.endsWith('.html') || currentActive.endsWith('.htm')) {
+      targetHtmlFile = currentActive;
+    } else if (allFiles.includes('index.html')) {
+      targetHtmlFile = 'index.html';
+    } else {
+      targetHtmlFile = allFiles.find((f) => f.endsWith('.html') || f.endsWith('.htm'));
+    }
+
+    setPreviewTarget(targetHtmlFile || 'No HTML File');
+
+    if (!targetHtmlFile) {
+      setPreviewDoc(`<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #94a3b8; display: flex; align-items: center; justify-content: center; height: 90vh; text-align: center; margin: 0; padding: 20px; }
+  .box { background: #1e293b; border: 1px solid #334155; padding: 32px; border-radius: 12px; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+  h3 { color: #f8fafc; margin-top: 0; }
+  code { background: #334155; color: #38bdf8; padding: 3px 6px; border-radius: 4px; font-size: 13px; }
+</style></head>
+<body>
+  <div class="box">
+    <h3>🌐 No HTML File Found</h3>
+    <p>Create an <code>index.html</code> file using the <b>+ New</b> button in the sidebar to preview web pages in real time.</p>
+  </div>
+</body></html>`);
+      return;
+    }
+
+    let htmlContent = '';
+    if (currentActive === targetHtmlFile && editorRef.current) {
+      htmlContent = editorRef.current.getValue();
+    } else {
+      htmlContent = ydocRef.current.getText(`file:${targetHtmlFile}`)?.toString() || '';
+    }
+
+    allFiles.filter((f) => f.endsWith('.css')).forEach((cssFile) => {
+      const cssContent = ydocRef.current.getText(`file:${cssFile}`)?.toString() || '';
+      const linkRegex = new RegExp(`<link[^>]+href=["'](\\./)?${cssFile.replace('.', '\\.')}["'][^>]*>`, 'gi');
+      if (linkRegex.test(htmlContent)) {
+        htmlContent = htmlContent.replace(linkRegex, `<style>/* ${cssFile} */\n${cssContent}\n</style>`);
+      } else if (!htmlContent.includes(`<style>/* ${cssFile} */`)) {
+        if (htmlContent.includes('</head>')) {
+          htmlContent = htmlContent.replace('</head>', `<style>/* ${cssFile} */\n${cssContent}\n</style></head>`);
+        } else {
+          htmlContent = `<style>/* ${cssFile} */\n${cssContent}\n</style>` + htmlContent;
+        }
+      }
+    });
+
+    allFiles.filter((f) => f.endsWith('.js') && f !== 'main.js').forEach((jsFile) => {
+      const jsContent = ydocRef.current.getText(`file:${jsFile}`)?.toString() || '';
+      const scriptRegex = new RegExp(`<script[^>]+src=["'](\\./)?${jsFile.replace('.', '\\.')}["'][^>]*>\\s*</script>`, 'gi');
+      if (scriptRegex.test(htmlContent)) {
+        htmlContent = htmlContent.replace(scriptRegex, `<script>/* ${jsFile} */\n${jsContent}\n</script>`);
+      }
+    });
+
+    setPreviewDoc(htmlContent);
+  }, []);
+
+  useEffect(() => {
+    showPreviewRef.current = showPreview;
+    if (showPreview) {
+      updateLivePreview();
+    }
+  }, [showPreview, updateLivePreview]);
+
+  useEffect(() => {
+    if (showPreviewRef.current) {
+      updateLivePreview();
+    }
+  }, [activeFile, updateLivePreview]);
 
   // Keep awareness synced when user changes active file
   useEffect(() => {
@@ -996,6 +1170,12 @@ function App() {
         if (!capturedAnyOutput) {
           capture('info', 'ℹ️ (Python executed successfully with no print output)');
         }
+      } else if (lang === 'html') {
+        capturedAnyOutput = true;
+        setShowPreview(true);
+        updateLivePreview();
+        capture('system', `🌐 [${activeFile}] Live Web Preview opened on the right.`);
+        capture('info', 'ℹ️ Live HTML/CSS/JS preview is displayed side-by-side with Monaco.');
       } else {
         capture(
           'info',
@@ -1031,7 +1211,7 @@ function App() {
           <div className="brand-badge">
             <span className="brand-icon">⚡</span>
             <span>MultiCode</span>
-            <span className="brand-tag">H9 Offline Ready</span>
+            
           </div>
 
           <div className="room-pill">
@@ -1274,6 +1454,17 @@ function App() {
               </button>
               <button
                 className="icon-btn"
+                onClick={() => setShowPreview((prev) => !prev)}
+                title="Toggle Live Web Preview (HTML/CSS/JS)"
+                style={{
+                  background: showPreview ? '#10b98133' : undefined,
+                  color: showPreview ? '#34d399' : undefined,
+                }}
+              >
+                🌐 Preview {showPreview ? '▼' : '▲'}
+              </button>
+              <button
+                className="icon-btn"
                 onClick={() => setShowConsole((prev) => !prev)}
                 title="Toggle Output Terminal"
                 style={{
@@ -1300,23 +1491,76 @@ function App() {
             </div>
           </div>
 
-          {/* Monaco Editor Canvas */}
-          <div className="monaco-wrapper">
-            <Editor
-              height="100%"
-              theme="vs-dark"
-              options={{
-                fontSize: 14,
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                wordWrap: 'on',
-                smoothScrolling: true,
-                cursorBlinking: 'smooth',
-                cursorSmoothCaretAnimation: 'on',
-              }}
-              onMount={handleEditorMount}
-            />
+          {/* Editor Body with Split Live Preview */}
+          <div className="ide-editor-body">
+            <div className={`monaco-wrapper ${showPreview ? 'split-view' : ''}`}>
+              <Editor
+                height="100%"
+                theme="vs-dark"
+                options={{
+                  fontSize: 14,
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  wordWrap: 'on',
+                  smoothScrolling: true,
+                  cursorBlinking: 'smooth',
+                  cursorSmoothCaretAnimation: 'on',
+                }}
+                onMount={handleEditorMount}
+              />
+            </div>
+
+            {showPreview && (
+              <div className="ide-preview-panel">
+                <div className="preview-header">
+                  <div className="preview-title">
+                    <span className="preview-dot"></span>
+                    <span>Live Web Preview</span>
+                    <span className="preview-target-badge">{previewTarget}</span>
+                  </div>
+                  <div className="preview-actions">
+                    <button
+                      className="preview-btn"
+                      onClick={() => {
+                        setPreviewKey((k) => k + 1);
+                        updateLivePreview();
+                      }}
+                      title="Reload preview"
+                    >
+                      🔄 Refresh
+                    </button>
+                    <button
+                      className="preview-btn"
+                      onClick={() => {
+                        const blob = new Blob([previewDoc], { type: 'text/html' });
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank');
+                      }}
+                      title="Open in new browser tab"
+                    >
+                      🔗 Pop Out
+                    </button>
+                    <button
+                      className="preview-btn preview-close-btn"
+                      onClick={() => setShowPreview(false)}
+                      title="Close preview"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <div className="preview-frame-container">
+                  <iframe
+                    key={previewKey}
+                    srcDoc={previewDoc}
+                    sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
+                    title="Live Web Preview"
+                    className="preview-iframe"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* In-Browser Output Terminal */}
